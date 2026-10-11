@@ -1,0 +1,35 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(./.env.example)",
+      "Bash(php artisan test:*)",
+      "Bash(php artisan migrate:*)",
+      "Bash(php artisan route:list:*)",
+      "Bash(vendor/bin/pint:*)",
+      "Bash(vendor/bin/phpstan:*)",
+      "Bash(npm run build)",
+      "Bash(npm run dev)"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.backup)",
+      "Read(./.env.production)",
+      "Read(./.env.local)",
+      "Read(./.env.testing)",
+      "Read(./.env.staging)",
+      "Read(./vendor/**)",
+      "Read(./node_modules/**)",
+      "Read(./storage/**)",
+      "Read(./public/build/**)",
+      "Read(./public/vendor/**)",
+      "Read(./lang/vendor/**)",
+      "Read(./package-lock.json)",
+      "Read(./composer.lock)"
+    ]
+  },
+  "enabledPlugins": {
+    "frontend-design@claude-plugins-official": true,
+    "playwright@claude-plugins-official": true,
+    "skill-creator@claude-plugins-official": true
+  }
+}

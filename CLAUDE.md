@@ -1,3 +1,63 @@
+# Srijonshil: NGO ledger and field collection app
+ 
+Laravel app for a multipurpose NGO (savings + loan collection). Bengali-speaking users, currency BDT (৳). Admin sees everything. Field officers collect from assigned parties on scheduled days, mainly from a phone (installable PWA).
+ 
+Read before any financial work: @docs/DOMAIN_RULES.md
+Schema and services: @docs/ARCHITECTURE.md
+PWA and offline: @docs/PWA.md
+Progress and next task: @docs/ROADMAP.md
+ 
+## Non-negotiable product principle
+The system RECORDS agreements and transactions. It never calculates, suggests or enforces interest. Do not add `interest_rate`, `interest_amount`, `profit`, or any auto-interest logic anywhere (columns, services, UI labels, seeders, reports). Admin sets the contract/receivable amount per account; the software only tracks received vs outstanding. Do not describe any feature as "Shariah compliant"; the contract decides that, not the software.
+ 
+## Stack (do not add alternatives)
+- Laravel 13 (see composer.json), Blade, MySQL, Spatie Permission, Vite
+- Tests run on SQLite `:memory:` (phpunit.xml). No MySQL-only SQL in app code, or tests won't catch it.
+- Local PHP is 8.5 but composer allows `^8.3`: avoid 8.4+-only syntax unless the constraint is raised.
+- UI: AdminLTE 4 on Bootstrap 5 (composer `jeroennoten/laravel-adminlte`, `config/adminlte.php`). Tailwind is installed but must NOT be used in views or wired into vite.config.js; ignore the Boost `tailwindcss-development` skill.
+- JS/CSS libraries come from npm via Vite only (jQuery included, admin entry only). Never use CDN links or the `plugins` section of `config/adminlte.php`. `public/vendor/` keeps only AdminLTE core assets (adminlte, bootstrap, bootstrap-icons, fonts, overlayscrollbars) until the layout is bundled via Vite.
+- One library per job:
+  - tables: DataTables (+ Buttons, pdfmake, jszip)
+  - charts: ApexCharts
+  - selects: Select2
+  - dates: Flatpickr
+  - confirm/alerts: SweetAlert2
+  - uploads: FilePond
+  - input masks: IMask
+- Do not use Tabulator, Chart.js, Dropzone, Quill, EasyMDE, FullCalendar, Tom Select, jsVectorMap, noUiSlider, Pickr, GLightbox, SortableJS unless a roadmap task explicitly needs one.
+## Architecture rules
+- Flow: Party -> Account -> CollectionSchedule -> Transaction -> Ledger -> Reports.
+- Reports are computed from `transactions`. Never keep balances as a second source of truth (cache columns only if fully rebuildable from the ledger).
+- `TransactionService` is the ONLY place that writes financial rows. Controllers, models, jobs and seeders go through it.
+- Transactions are immutable: no update, no delete. Fix mistakes with a reversal + a new transaction.
+- Money is stored as integer poisha (BIGINT), handled through one `Money` helper/cast. Never floats.
+- Every financial write runs inside a DB transaction and writes an audit log row.
+- PWA collection posts carry a client-generated `client_uuid` (unique index) so offline retries never double-post.
+- Authorization: Spatie roles (admin, manager, accountant, field_officer) + Policies. Field officers see only their own assigned parties and schedules; enforce in queries, not just in the UI.
+- Thin controllers, Form Requests for validation, Services for logic.
+## Workflow
+1. Non-trivial feature: brainstorm -> short plan appended to docs/ROADMAP.md -> tests first -> implement (superpowers workflow).
+2. Use Laravel Boost instead of guessing: `search-docs` for framework/package docs, `database-schema` before touching tables, `tinker` / `database-query` to verify behaviour, `last-error` when debugging.
+3. Query the graphify graph for "where is X / what calls Y" before grepping or reading many files. Rebuild it after large refactors.
+4. Before calling a task done: `php artisan test`, `vendor/bin/pint --dirty` and `vendor/bin/phpstan analyse` (Larastan level 6, must stay at 0 errors; no baseline or ignores).
+5. Tick the item in docs/ROADMAP.md when finished and note anything the next session must know in one line.
+## Token discipline
+- Caveman mode on: terse replies, no restating the task, no recap of diffs.
+- Never read: vendor/, node_modules/, storage/, public/build/, public/vendor/, lang/vendor/, lockfiles, .git/.
+- Read files by line range when only one method matters.
+- One roadmap item per session. `/clear` between items. `/compact` around 60% context.
+- Put durable decisions in docs/, not in chat. Do not re-explain this file.
+## Commands
+- Dev: `composer dev` (runs `php artisan dev`)
+- Test: `composer test` (clears config first) or `php artisan test --compact --filter=Name`
+- Format: `vendor/bin/pint --dirty`
+- Build: `npm run build`
+## Conventions
+- UI text via `lang/bn/` with English fallback in `lang/en/`. Never hardcode Bengali strings in Blade.
+- Dates stored UTC (`app.timezone`), displayed in `config('app.display_timezone')` (Asia/Dhaka). Default locale `bn`, fallback `en`.
+- Codes generated in services: parties `P-00001`, savings `SV-000001`, loans `LN-000001`, receipts `R-YYYYMM-00001`.
+- Mobile-first for anything a field officer touches (large tap targets, one-hand use, works on slow networks).
+
 <laravel-boost-guidelines>
 === foundation rules ===
 

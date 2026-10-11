@@ -69,6 +69,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Display Timezone
+    |--------------------------------------------------------------------------
+    |
+    | Dates are stored in UTC (above) and converted to this timezone only
+    | when shown to users.
+    |
+    */
+
+    'display_timezone' => 'Asia/Dhaka',
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Locale Configuration
     |--------------------------------------------------------------------------
     |
@@ -78,7 +90,7 @@ return [
     |
     */
 
-    'locale' => env('APP_LOCALE', 'en'),
+    'locale' => env('APP_LOCALE', 'bn'),
 
     'fallback_locale' => env('APP_FALLBACK_LOCALE', 'en'),
 
