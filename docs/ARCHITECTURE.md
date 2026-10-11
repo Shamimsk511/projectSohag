@@ -41,4 +41,4 @@ Indexes: transactions(transaction_date), (account_id, transaction_date), (field_
 
 ## Libraries wiring
 Bundle only what a page needs via Vite entry points per area (admin, field) to keep the field PWA light: the field entry must not import DataTables, ApexCharts, pdfmake or jQuery.
-Single source: npm packages bundled by Vite (decided 2026-10-11). No CDN links, no `config/adminlte.php` plugins. When the admin layout moves to Vite (`laravel_asset_bundling`), delete the remaining `public/vendor/` AdminLTE core copies.
+Single source: npm packages bundled by Vite (decided 2026-10-11). No CDN links, no `config/adminlte.php` plugins. Admin layout uses `laravel_asset_bundling = vite_js_only` with entry `resources/js/admin.js`; `public/vendor/` keeps only `adminlte/dist/assets` (logo images).

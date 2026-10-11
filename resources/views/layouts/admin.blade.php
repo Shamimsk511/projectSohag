@@ -33,43 +33,5 @@
 {{-- Create a common footer --}}
 
 @section('footer')
-    <div class="float-end">
-        Version: {{ config('app.version', '1.0.0') }}
-    </div>
-
-    <strong>
-        <a href="{{ config('app.company_url', '#') }}">
-            {{ config('app.company_name', 'My company') }}
-        </a>
-    </strong>
+    <strong>{{ config('app.name') }}</strong>
 @stop
-
-{{-- Add common Javascript code (AdminLTE v4 does not load jQuery) --}}
-
-@push('js')
-<script>
-
-    document.addEventListener('DOMContentLoaded', function () {
-        // Add your common script logic here...
-    });
-
-</script>
-@endpush
-
-{{-- Add common CSS customizations --}}
-
-@push('css')
-<style type="text/css">
-
-    {{-- You can add AdminLTE customizations here --}}
-    /*
-    .card-header {
-        border-bottom: none;
-    }
-    .card-title {
-        font-weight: 600;
-    }
-    */
-
-</style>
-@endpush

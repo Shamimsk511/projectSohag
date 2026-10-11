@@ -4,7 +4,7 @@ Work top to bottom. One item per Claude Code session. Tick when done and add a o
 
 ## Phase 0: Project setup
 - [x] Confirm Laravel version, DB config, Spatie Permission migrated, roles/permissions seeder (admin, manager, accountant, field_officer)
-- [ ] Integrate AdminLTE 4 layout via Vite (admin entry), remove unused starter UI
+- [x] Integrate AdminLTE 4 layout via Vite (admin entry), remove unused starter UI
 - [ ] Separate Vite entries: `admin` and `field`
 - [ ] Money helper + cast, Bengali lang files skeleton, Asia/Dhaka timezone
 - [ ] Pint + test baseline green, graphify graph built
@@ -54,3 +54,4 @@ Work top to bottom. One item per Claude Code session. Tick when done and add a o
 ## Handoff notes
 (append one line per finished item: date, what changed, anything the next session must know)
 - 2026-10-11: Laravel 13.35, MySQL (tests: sqlite memory), Spatie 8.3 migrated. Roles/permissions live in `App\Enums\Role` + `App\Enums\Permission::roles()`; `RolesAndPermissionsSeeder` is idempotent (rerun after adding enum cases). Admin bypasses all checks via `Gate::before` in AppServiceProvider. Check permissions with `$user->can(Permission::X->value)`. Also added Larastan lvl 6, npm-only assets, `app.display_timezone`, locale bn. No admin user seeded yet (Phase 1 users item).
+- 2026-10-12: AdminLTE via `resources/js/admin.js` (vite_js_only; bootstrap/icons/overlayscrollbars/fonts from npm, package CDN/local loading disabled). Pages extend `layouts.admin`; auth views are one-line `@extends('adminlte::auth.*')`. Public registration off. `/admin` is auth-only for now (no role gate yet: Phase 1). Menu in config/adminlte.php has only dashboard. Tests need `withoutVite()`. Bengali font (Source Sans has no Bengali glyphs) still to pick.

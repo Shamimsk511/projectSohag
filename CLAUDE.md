@@ -15,7 +15,7 @@ The system RECORDS agreements and transactions. It never calculates, suggests or
 - Tests run on SQLite `:memory:` (phpunit.xml). No MySQL-only SQL in app code, or tests won't catch it.
 - Local PHP is 8.5 but composer allows `^8.3`: avoid 8.4+-only syntax unless the constraint is raised.
 - UI: AdminLTE 4 on Bootstrap 5 (composer `jeroennoten/laravel-adminlte`, `config/adminlte.php`). Tailwind is installed but must NOT be used in views or wired into vite.config.js; ignore the Boost `tailwindcss-development` skill.
-- JS/CSS libraries come from npm via Vite only (jQuery included, admin entry only). Never use CDN links or the `plugins` section of `config/adminlte.php`. `public/vendor/` keeps only AdminLTE core assets (adminlte, bootstrap, bootstrap-icons, fonts, overlayscrollbars) until the layout is bundled via Vite.
+- JS/CSS libraries come from npm via Vite only (jQuery included, admin entry only). Never use CDN links or the `plugins` section of `config/adminlte.php`. Admin layout bundles everything through `resources/js/admin.js` (`laravel_asset_bundling = vite_js_only`); `public/vendor/` only holds AdminLTE logo images.
 - One library per job:
   - tables: DataTables (+ Buttons, pdfmake, jszip)
   - charts: ApexCharts
