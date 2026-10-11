@@ -1,0 +1,6 @@
+/* Overrides loaded after AdminLTE. Keep small; prefer Bootstrap/AdminLTE classes. */
+
+/* Latin glyphs from Source Sans 3, Bengali glyphs from Noto Sans Bengali. */
+:root {
+    --bs-body-font-family: "Source Sans 3", "Noto Sans Bengali", system-ui, -apple-system, "Segoe UI", sans-serif;
+}

@@ -6,9 +6,13 @@ import '@fontsource/source-sans-3/300.css';
 import '@fontsource/source-sans-3/400.css';
 import '@fontsource/source-sans-3/600.css';
 import '@fontsource/source-sans-3/700.css';
+import '@fontsource/noto-sans-bengali/400.css';
+import '@fontsource/noto-sans-bengali/600.css';
+import '@fontsource/noto-sans-bengali/700.css';
 import 'bootstrap-icons/font/bootstrap-icons.min.css';
 import 'overlayscrollbars/overlayscrollbars.css';
 import 'admin-lte/dist/css/adminlte.css';
+import '../css/admin.css';
 
 import * as bootstrap from 'bootstrap';
 import { OverlayScrollbars } from 'overlayscrollbars';
