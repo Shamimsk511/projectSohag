@@ -2,13 +2,7 @@
  * Admin panel entry (AdminLTE 4). Loaded by the package layout through
  * `laravel_asset_bundling = vite_js_only`, so every base asset lives here.
  */
-import '@fontsource/source-sans-3/300.css';
-import '@fontsource/source-sans-3/400.css';
-import '@fontsource/source-sans-3/600.css';
-import '@fontsource/source-sans-3/700.css';
-import '@fontsource/noto-sans-bengali/400.css';
-import '@fontsource/noto-sans-bengali/600.css';
-import '@fontsource/noto-sans-bengali/700.css';
+import './fonts.js';
 import 'bootstrap-icons/font/bootstrap-icons.min.css';
 import 'overlayscrollbars/overlayscrollbars.css';
 import 'admin-lte/dist/css/adminlte.css';

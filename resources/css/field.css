@@ -1,0 +1,12 @@
+/* Field officer overrides loaded after Bootstrap. Mobile-first, one-hand use. */
+
+:root {
+    --bs-body-font-family: "Source Sans 3", "Noto Sans Bengali", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+/* Minimum 48px tap targets (docs/PWA.md). */
+.btn,
+.form-control,
+.form-select {
+    min-height: 48px;
+}
