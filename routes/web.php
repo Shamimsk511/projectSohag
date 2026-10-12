@@ -9,6 +9,7 @@ use App\Http\Controllers\Admin\OfficeEntryController;
 use App\Http\Controllers\Admin\PartyAssignmentController;
 use App\Http\Controllers\Admin\PartyController;
 use App\Http\Controllers\Admin\PartyPhotoUploadController;
+use App\Http\Controllers\Admin\ScheduleController;
 use App\Http\Controllers\Admin\TransactionController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\HomeController;
@@ -37,6 +38,10 @@ Route::middleware(['auth', RoleMiddleware::using(Role::names(Role::office()))])
         Route::post('accounts/{account}/adjustments', [AccountController::class, 'adjust'])->name('accounts.adjust');
         Route::post('accounts/{account}/close', [AccountController::class, 'close'])->name('accounts.close');
         Route::put('accounts/{account}/collection-plan', [CollectionPlanController::class, 'update'])->name('accounts.collection-plan.update');
+        Route::post('accounts/{account}/schedules', [ScheduleController::class, 'store'])->name('accounts.schedules.store');
+        Route::post('schedules/reassign', [ScheduleController::class, 'reassign'])->name('schedules.reassign');
+        Route::post('schedules/{schedule}/cancel', [ScheduleController::class, 'cancel'])->name('schedules.cancel');
+        Route::resource('schedules', ScheduleController::class)->only(['index', 'edit', 'update']);
         Route::resource('holidays', HolidayController::class)->only(['index', 'store', 'destroy']);
         Route::post('accounts/{account}/transactions', [TransactionController::class, 'store'])->name('accounts.transactions.store');
         Route::get('office-entries', [OfficeEntryController::class, 'index'])->name('office-entries.index');

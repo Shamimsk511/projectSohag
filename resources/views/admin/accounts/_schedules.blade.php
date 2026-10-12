@@ -1,4 +1,4 @@
-{{-- Collection plan summary and the next schedule rows. Expects $account, $upcoming, $date. --}}
+{{-- Collection plan summary and the next schedule rows. Expects $account, $upcoming, $date, $canSchedule. --}}
 @php($plan = $account->collectionPlan)
 <div class="card mb-3">
     <div class="card-header"><h3 class="card-title mb-0">{{ __('app.schedules.plan') }}</h3></div>
@@ -32,6 +32,9 @@
                     <th class="text-end">{{ __('app.schedules.expected_amount') }}</th>
                     <th>{{ __('app.schedules.officer') }}</th>
                     <th>{{ __('app.schedules.status') }}</th>
+                    @if ($canSchedule)
+                        <th></th>
+                    @endif
                 </tr>
             </thead>
             <tbody>
@@ -40,11 +43,26 @@
                         <td>{{ $date($schedule->due_date) }}</td>
                         <td class="text-end">{{ $schedule->expected_amount->format() }}</td>
                         <td>{{ $schedule->fieldOfficer?->name ?? __('app.schedules.unassigned') }}</td>
-                        <td>{{ __('app.schedules.statuses.'.$schedule->status->value) }}</td>
+                        <td>
+                            {{ __('app.schedules.statuses.'.$schedule->status->value) }}
+                            @if ($schedule->notes)
+                                <div class="small text-body-secondary">{{ $schedule->notes }}</div>
+                            @endif
+                        </td>
+                        @if ($canSchedule)
+                            <td class="text-end">
+                                @if ($schedule->status === \App\Enums\ScheduleStatus::Pending)
+                                    <a href="{{ route('admin.schedules.edit', $schedule) }}" class="btn btn-sm btn-outline-primary"
+                                       aria-label="{{ __('app.schedules.edit') }}">
+                                        <i class="bi bi-pencil" aria-hidden="true"></i>
+                                    </a>
+                                @endif
+                            </td>
+                        @endif
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="4" class="text-center text-body-secondary py-3">{{ __('app.schedules.no_upcoming') }}</td>
+                        <td colspan="5" class="text-center text-body-secondary py-3">{{ __('app.schedules.no_upcoming') }}</td>
                     </tr>
                 @endforelse
             </tbody>

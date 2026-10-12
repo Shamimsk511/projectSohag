@@ -9,6 +9,7 @@ use App\Http\Requests\Admin\AdjustAccountRequest;
 use App\Http\Requests\Admin\CloseAccountRequest;
 use App\Http\Requests\Admin\StoreAccountRequest;
 use App\Models\Account;
+use App\Models\CollectionSchedule;
 use App\Models\Party;
 use App\Models\Transaction;
 use App\Services\AccountService;
@@ -55,6 +56,7 @@ class AccountController extends Controller
             'remaining' => $ledger->remainingBalance($account),
             'canPost' => Gate::allows('create', [Transaction::class, $account]),
             'canManage' => Gate::allows('update', $account),
+            'canSchedule' => Gate::allows('create', CollectionSchedule::class),
             'upcoming' => $account->schedules()->with('fieldOfficer')->where('due_date', '>=', $today)
                 ->orderBy('due_date')->limit(10)->get(),
         ]);

@@ -45,6 +45,12 @@ class AppServiceProvider extends ServiceProvider
                 'icon' => 'bi bi-geo-alt',
                 'can' => Permission::ManageParties->value,
             ], [
+                'text' => __('app.schedules.title'),
+                'route' => 'admin.schedules.index',
+                'active' => ['admin/schedules*'],
+                'icon' => 'bi bi-calendar-check',
+                'can' => [Permission::ManageSchedules->value, Permission::ViewAllReports->value],
+            ], [
                 'text' => __('app.holidays.title'),
                 'route' => 'admin.holidays.index',
                 'icon' => 'bi bi-calendar-x',

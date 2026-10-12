@@ -92,6 +92,103 @@ class CollectionService
     }
 
     /**
+     * Add a one-off collection date (custom schedule) for the officer currently holding the party.
+     */
+    public function addSchedule(Account $account, Carbon $dueDate, Money $expected, ?string $notes, User $actor): CollectionSchedule
+    {
+        $dueDate = Carbon::parse($dueDate->toDateString());
+
+        if (! $account->isActive()) {
+            throw ValidationException::withMessages(['due_date' => __('app.schedules.account_closed')]);
+        }
+
+        $this->assertEditable($dueDate, $expected);
+
+        return DB::transaction(function () use ($account, $dueDate, $expected, $notes, $actor): CollectionSchedule {
+            Account::query()->whereKey($account->id)->lockForUpdate()->firstOrFail();
+            $this->assertFree($account->id, $dueDate, null);
+
+            $schedule = $account->schedules()->create([
+                'party_id' => $account->party_id,
+                'field_officer_id' => $account->party->activeAssignment()->value('field_officer_id'),
+                'due_date' => $dueDate->toDateString(),
+                'expected_amount' => $expected,
+                'notes' => $notes,
+            ]);
+            $this->audit->created('schedule.added', $schedule, $actor);
+
+            return $schedule;
+        });
+    }
+
+    /**
+     * Move a pending row to another date and/or change what is expected.
+     */
+    public function updateSchedule(CollectionSchedule $schedule, Carbon $dueDate, Money $expected, ?string $notes, User $actor): CollectionSchedule
+    {
+        $dueDate = Carbon::parse($dueDate->toDateString());
+        $this->assertEditable($dueDate, $expected);
+
+        return DB::transaction(function () use ($schedule, $dueDate, $expected, $notes, $actor): CollectionSchedule {
+            $schedule = $this->lockPending($schedule);
+            $this->assertFree($schedule->account_id, $dueDate, $schedule->id);
+
+            $schedule->update(['due_date' => $dueDate->toDateString(), 'expected_amount' => $expected, 'notes' => $notes]);
+            $this->audit->updated('schedule.updated', $schedule, $actor);
+
+            return $schedule;
+        });
+    }
+
+    /**
+     * Cancel a pending row. The reason replaces its notes; the audit log keeps the old ones.
+     */
+    public function cancelSchedule(CollectionSchedule $schedule, string $reason, User $actor): CollectionSchedule
+    {
+        return DB::transaction(function () use ($schedule, $reason, $actor): CollectionSchedule {
+            $schedule = $this->lockPending($schedule);
+
+            $schedule->update(['status' => ScheduleStatus::Cancelled, 'notes' => $reason]);
+            $this->audit->updated('schedule.cancelled', $schedule, $actor);
+
+            return $schedule;
+        });
+    }
+
+    /**
+     * Hand one officer's pending rows for a day ($from null = unassigned rows) to another active
+     * field officer, e.g. to cover an absence. Party assignments stay as they are. Returns the count.
+     */
+    public function reassignDay(Carbon $date, ?User $from, User $to, User $actor): int
+    {
+        $date = Carbon::parse($date->toDateString());
+
+        if ($date->lt($this->today())) {
+            throw ValidationException::withMessages(['date' => __('app.schedules.date_past')]);
+        }
+
+        if ($from?->id === $to->id || ! User::query()->activeFieldOfficers()->whereKey($to->id)->exists()) {
+            throw ValidationException::withMessages(['to_officer_id' => __('app.schedules.invalid_officer')]);
+        }
+
+        return DB::transaction(function () use ($date, $from, $to, $actor): int {
+            $rows = CollectionSchedule::query()
+                ->dueOn($date)
+                ->where('status', ScheduleStatus::Pending)
+                ->where('field_officer_id', $from?->id)
+                ->lockForUpdate()
+                ->get();
+
+            foreach ($rows as $schedule) {
+                $schedule->update(['field_officer_id' => $to->id]);
+                $this->audit->updated('schedule.reassigned', $schedule, $actor);
+            }
+
+            return $rows->count();
+        });
+    }
+
+    /**
      * Add a day without collections. Pending rows already generated for it are cancelled; weekly and
      * monthly plans then fall on the next working day.
      */
@@ -233,6 +330,47 @@ class CollectionService
 
             return true;
         });
+    }
+
+    private function assertEditable(Carbon $dueDate, Money $expected): void
+    {
+        if ($dueDate->lt($this->today())) {
+            throw ValidationException::withMessages(['due_date' => __('app.schedules.date_past')]);
+        }
+
+        if (! $expected->isPositive()) {
+            throw ValidationException::withMessages(['expected_amount' => __('app.schedules.installment_positive')]);
+        }
+    }
+
+    /**
+     * One row per account per date; $ignoreId is the row being moved.
+     */
+    private function assertFree(int $accountId, Carbon $dueDate, ?int $ignoreId): void
+    {
+        $taken = CollectionSchedule::query()
+            ->where('account_id', $accountId)
+            ->dueOn($dueDate)
+            ->when($ignoreId, fn ($query) => $query->whereKeyNot($ignoreId))
+            ->exists();
+
+        if ($taken) {
+            throw ValidationException::withMessages(['due_date' => __('app.schedules.date_taken')]);
+        }
+    }
+
+    /**
+     * Fresh locked copy; only pending rows can be changed by hand.
+     */
+    private function lockPending(CollectionSchedule $schedule): CollectionSchedule
+    {
+        $schedule = CollectionSchedule::query()->whereKey($schedule->id)->lockForUpdate()->firstOrFail();
+
+        if ($schedule->status !== ScheduleStatus::Pending) {
+            throw ValidationException::withMessages(['status' => __('app.schedules.not_pending')]);
+        }
+
+        return $schedule;
     }
 
     /**

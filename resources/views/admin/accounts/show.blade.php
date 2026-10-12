@@ -102,7 +102,7 @@
             @endif
         </div>
 
-        @if ($account->isActive() && ($canPost || $canManage))
+        @if ($account->isActive() && ($canPost || $canManage || $canSchedule))
             <div class="col-lg-4">
                 @if ($canPost)
                     @include('admin.accounts._entry_form')
@@ -110,6 +110,13 @@
 
                 @if ($canManage)
                     @include('admin.accounts._plan_form')
+                @endif
+
+                @if ($canSchedule)
+                    @include('admin.accounts._schedule_form')
+                @endif
+
+                @if ($canManage)
 
                     @if ($account->isLoan())
                         <form method="POST" action="{{ route('admin.accounts.adjust', $account) }}" class="card mb-3">
