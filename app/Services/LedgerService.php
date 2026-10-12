@@ -2,8 +2,10 @@
 
 namespace App\Services;
 
+use App\Enums\PaymentMethod;
 use App\Enums\TransactionType;
 use App\Models\Account;
+use App\Models\CashHandover;
 use App\Models\Transaction;
 use App\Support\AccountStatement;
 use App\Support\Money;
@@ -147,6 +149,42 @@ class LedgerService
         }
 
         return $collected;
+    }
+
+    /**
+     * Cash each field officer collected and has not handed to the office yet: effective cash
+     * collections attributed to them minus their handovers. Negative when a collection was reversed
+     * after its cash was handed over. Every id gets an entry.
+     *
+     * @param  list<int>  $officerIds
+     * @return array<int, Money>
+     */
+    public function cashInHand(array $officerIds): array
+    {
+        if ($officerIds === []) {
+            return [];
+        }
+
+        $collected = $this->effectiveRows()
+            ->whereIn('field_officer_id', $officerIds)
+            ->whereIn('type', [TransactionType::LoanCollection, TransactionType::SavingDeposit])
+            ->where('payment_method', PaymentMethod::Cash)
+            ->groupBy('field_officer_id')
+            ->selectRaw('field_officer_id, sum(amount) as total')
+            ->pluck('total', 'field_officer_id');
+
+        $handedOver = CashHandover::query()
+            ->whereIn('field_officer_id', $officerIds)
+            ->groupBy('field_officer_id')
+            ->selectRaw('field_officer_id, sum(amount) as total')
+            ->pluck('total', 'field_officer_id');
+
+        $inHand = [];
+        foreach ($officerIds as $id) {
+            $inHand[$id] = Money::fromPoisha((int) ($collected[$id] ?? 0) - (int) ($handedOver[$id] ?? 0));
+        }
+
+        return $inHand;
     }
 
     private function sum(Account $account, TransactionType $type): Money

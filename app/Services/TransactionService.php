@@ -7,10 +7,12 @@ use App\Enums\ScheduleStatus;
 use App\Enums\TransactionType;
 use App\Models\Account;
 use App\Models\CollectionSchedule;
+use App\Models\DailyClosing;
 use App\Models\Transaction;
 use App\Models\User;
 use App\Support\TransactionData;
 use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -74,6 +76,10 @@ class TransactionService
                 $this->reject('reason', 'account_closed');
             }
 
+            if ($this->isLocked($original->transaction_date, $actor) || $this->isLocked(today(config('app.display_timezone')), $actor)) {
+                $this->reject('reason', 'day_closed');
+            }
+
             if ($account && $original->type === TransactionType::SavingDeposit
                 && $original->amount->greaterThan($this->ledger->savingBalance($account))) {
                 $this->reject('reason', 'reversal_exceeds_balance');
@@ -133,6 +139,10 @@ class TransactionService
 
         if ($date > today(config('app.display_timezone'))->toDateString()) {
             $this->reject('transaction_date', 'future_date');
+        }
+
+        if ($this->isLocked($data->date, $actor)) {
+            $this->reject('transaction_date', 'day_closed');
         }
 
         if ($account && ! $account->isActive()) {
@@ -214,6 +224,14 @@ class TransactionService
     private function receiptNumber(string $yearMonth): string
     {
         return sprintf('R-%s-%05d', $yearMonth, $this->sequences->next('receipt.'.$yearMonth));
+    }
+
+    /**
+     * A closed day takes no new rows except from those allowed to post on closed days (admin).
+     */
+    private function isLocked(Carbon $date, User $actor): bool
+    {
+        return ! $actor->can(Permission::PostOnClosedDays->value) && DailyClosing::isClosed($date);
     }
 
     private function findByClientUuid(?string $clientUuid): ?Transaction

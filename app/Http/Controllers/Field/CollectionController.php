@@ -6,6 +6,7 @@ use App\Enums\ScheduleStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Field\StoreCollectionRequest;
 use App\Models\CollectionSchedule;
+use App\Models\DailyClosing;
 use App\Services\LedgerService;
 use App\Services\TransactionService;
 use App\Support\Money;
@@ -63,6 +64,8 @@ class CollectionController extends Controller
             'expectedTotal' => $schedules->map->expected_amount->reduce($sum, Money::zero()),
             'collectedTotal' => $schedules->map(fn (CollectionSchedule $schedule): Money => $collected[$schedule->id])->reduce($sum, Money::zero()),
             'remainingTotal' => $schedules->map(fn (CollectionSchedule $schedule): Money => $remaining[$schedule->id])->reduce($sum, Money::zero()),
+            'cashInHand' => $this->ledger->cashInHand([$this->actor()->id])[$this->actor()->id],
+            'todayClosed' => DailyClosing::isClosed($today),
         ]);
     }
 
@@ -90,7 +93,7 @@ class CollectionController extends Controller
     {
         $transaction = $this->transactions->record($request->transactionData(), $this->actor());
 
-        return redirect()->route('field.receipts.show', $transaction)->with('status', __('app.field.collected', [
+        return redirect()->route('field.receipts.show', $transaction)->with('status', __('app.field.saved', [
             'amount' => $transaction->amount->format(),
             'party' => $schedule->party->name,
             'receipt' => $transaction->receipt_no,

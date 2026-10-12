@@ -61,6 +61,16 @@ class AppServiceProvider extends ServiceProvider
                 'icon' => 'bi bi-cash-coin',
                 'can' => [Permission::PostOfficeEntries->value, Permission::ViewAllReports->value],
             ], [
+                'text' => __('app.cash.title'),
+                'route' => 'admin.cash-handovers.index',
+                'icon' => 'bi bi-wallet2',
+                'can' => [Permission::ReceiveCash->value, Permission::ViewAllReports->value],
+            ], [
+                'text' => __('app.closings.title'),
+                'route' => 'admin.daily-closings.index',
+                'icon' => 'bi bi-lock',
+                'can' => [Permission::CloseDays->value, Permission::ViewAllReports->value],
+            ], [
                 'text' => __('app.users.title'),
                 'route' => 'admin.users.index',
                 'icon' => 'bi bi-people',

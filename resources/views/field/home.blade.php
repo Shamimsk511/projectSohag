@@ -7,6 +7,10 @@
         <div class="alert alert-success" role="status">{{ session('status') }}</div>
     @endif
 
+    @if ($todayClosed)
+        <div class="alert alert-warning" role="status">{{ __('app.closings.today_closed') }}</div>
+    @endif
+
     <h1 class="h4 mb-3">{{ __('app.today') }}</h1>
 
     <div class="card mb-3">
@@ -25,6 +29,10 @@
                     <div class="small text-body-secondary">{{ __('app.field.remaining') }}</div>
                     <div class="fw-semibold text-danger">{{ $remainingTotal->format() }}</div>
                 </div>
+            </div>
+            <div class="d-flex justify-content-between border-top mt-3 pt-2">
+                <span class="text-body-secondary">{{ __('app.cash.in_hand') }}</span>
+                <span class="fw-semibold">{{ $cashInHand->format() }}</span>
             </div>
         </div>
     </div>

@@ -20,6 +20,9 @@ enum Permission: string
     case ReverseTransactions = 'transactions.reverse';
     case OverrideLimits = 'limits.override';
     case ViewAllReports = 'reports.view_all';
+    case ReceiveCash = 'cash.receive';
+    case CloseDays = 'days.close';
+    case PostOnClosedDays = 'closed_days.post';
 
     /**
      * Non-admin roles that hold this permission.
@@ -29,13 +32,13 @@ enum Permission: string
     public function roles(): array
     {
         return match ($this) {
-            self::ManageUsers, self::OverrideLimits => [],
+            self::ManageUsers, self::OverrideLimits, self::PostOnClosedDays => [],
             self::ViewAllParties => [Role::Manager, Role::Accountant],
             self::ManageParties, self::AssignParties, self::ManageAccounts, self::ManageSchedules,
             self::ReverseTransactions => [Role::Manager],
             self::RecordCollections => [Role::Manager, Role::FieldOfficer],
             self::PostLedgerEntries, self::PostOfficeEntries => [Role::Accountant],
-            self::ViewAllReports => [Role::Manager, Role::Accountant],
+            self::ViewAllReports, self::ReceiveCash, self::CloseDays => [Role::Manager, Role::Accountant],
         };
     }
 }

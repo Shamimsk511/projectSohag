@@ -3,7 +3,9 @@
 use App\Enums\Role;
 use App\Http\Controllers\Admin\AccountController;
 use App\Http\Controllers\Admin\AreaController;
+use App\Http\Controllers\Admin\CashHandoverController;
 use App\Http\Controllers\Admin\CollectionPlanController;
+use App\Http\Controllers\Admin\DailyClosingController;
 use App\Http\Controllers\Admin\HolidayController;
 use App\Http\Controllers\Admin\OfficeEntryController;
 use App\Http\Controllers\Admin\PartyAssignmentController;
@@ -48,6 +50,8 @@ Route::middleware(['auth', RoleMiddleware::using(Role::names(Role::office()))])
         Route::post('accounts/{account}/transactions', [TransactionController::class, 'store'])->name('accounts.transactions.store');
         Route::get('office-entries', [OfficeEntryController::class, 'index'])->name('office-entries.index');
         Route::post('office-entries', [OfficeEntryController::class, 'store'])->name('office-entries.store');
+        Route::resource('cash-handovers', CashHandoverController::class)->only(['index', 'store']);
+        Route::resource('daily-closings', DailyClosingController::class)->only(['index', 'store']);
         Route::get('transactions/{transaction}/receipt', [ReceiptController::class, 'show'])->name('transactions.receipt');
         Route::post('transactions/{transaction}/reverse', [TransactionController::class, 'reverse'])->name('transactions.reverse');
         Route::post('uploads/party-photo', [PartyPhotoUploadController::class, 'store'])->name('uploads.party-photo.store');
