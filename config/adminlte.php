@@ -613,7 +613,7 @@ return [
 
     'sidebar_nav_aria_label' => null,
     'sidebar_nav_compact' => false,
-    'sidebar_nav_indent' => false,
+    'sidebar_nav_indent' => true,
     'sidebar_nav_pills' => false,
     'sidebar_nav_accordion' => true,
     'sidebar_nav_animation_speed' => 300,
@@ -779,11 +779,6 @@ return [
         [
             'type' => 'fullscreen-widget',
             'topnav_right' => true,
-        ],
-        [
-            'text' => 'dashboard',
-            'url' => 'admin',
-            'icon' => 'bi bi-speedometer2',
         ],
     ],
 

@@ -29,7 +29,7 @@
                         <div class="fw-semibold" data-field="party_name"></div>
                         <div class="small text-body-secondary" data-field="account_number"></div>
                     </div>
-                    <div class="fw-semibold text-nowrap" data-field="amount_label"></div>
+                    <div class="field-amount" data-field="amount_label"></div>
                 </div>
                 <div class="small text-body-secondary mt-1">{{ __('app.queue.collected_at') }}: <span data-field="collected_at_label"></span></div>
                 <div class="small text-body-secondary d-none" data-pending-info>

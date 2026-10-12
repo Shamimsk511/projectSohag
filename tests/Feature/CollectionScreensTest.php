@@ -8,6 +8,7 @@ use App\Models\Account;
 use App\Models\CollectionPlan;
 use App\Models\Holiday;
 use App\Models\User;
+use App\Support\Money;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -57,6 +58,59 @@ class CollectionScreensTest extends TestCase
             ->assertOk()
             ->assertSee(__('app.schedules.upcoming'))
             ->assertSee('১৩/১০/২০২৬');
+    }
+
+    public function test_plan_duration_sets_the_end_date_and_the_estimated_total_is_shown(): void
+    {
+        $this->actingAs($this->manager)
+            ->put(route('admin.accounts.collection-plan.update', $this->account), [
+                'frequency' => 'monthly',
+                'installment_amount' => '1000',
+                'starts_on' => '2026-10-12',
+                'duration' => '3',
+                'duration_unit' => 'years',
+            ])
+            ->assertSessionHasNoErrors();
+
+        $plan = CollectionPlan::sole();
+        $this->assertSame('2029-10-11', $plan->ends_on?->toDateString());
+        $this->assertSame(3_600_000, $plan->estimatedTotal()->poisha);
+
+        $this->actingAs($this->manager)->get(route('admin.accounts.show', $this->account))
+            ->assertOk()
+            ->assertSee(Money::fromTaka('36000')->format());
+    }
+
+    public function test_an_entered_end_date_wins_over_the_duration(): void
+    {
+        $this->actingAs($this->manager)
+            ->put(route('admin.accounts.collection-plan.update', $this->account), [
+                'frequency' => 'daily',
+                'installment_amount' => '100',
+                'weekdays' => ['0', '1', '2', '3', '4', '5', '6'],
+                'starts_on' => '2026-10-12',
+                'ends_on' => '2026-10-21',
+                'duration' => '2',
+                'duration_unit' => 'months',
+            ])
+            ->assertSessionHasNoErrors();
+
+        $plan = CollectionPlan::sole();
+        $this->assertSame('2026-10-21', $plan->ends_on?->toDateString());
+        $this->assertSame(100_000, $plan->estimatedTotal()->poisha);
+    }
+
+    public function test_duration_input_is_validated(): void
+    {
+        $this->actingAs($this->manager)
+            ->put(route('admin.accounts.collection-plan.update', $this->account), [
+                'frequency' => 'weekly',
+                'installment_amount' => '100',
+                'starts_on' => '2026-10-12',
+                'duration' => '0',
+                'duration_unit' => 'decades',
+            ])
+            ->assertSessionHasErrors(['duration', 'duration_unit']);
     }
 
     public function test_plan_input_is_validated(): void

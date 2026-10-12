@@ -11,6 +11,7 @@ import '../css/admin.css';
 import * as bootstrap from 'bootstrap';
 import { OverlayScrollbars } from 'overlayscrollbars';
 import 'admin-lte';
+import './admin/top-bar.js';
 
 window.bootstrap = bootstrap;
 
@@ -23,5 +24,12 @@ document.addEventListener('DOMContentLoaded', () => {
         OverlayScrollbars(sidebarWrapper, {
             scrollbars: { theme: 'os-theme-light', autoHide: 'leave', clickScroll: true },
         });
+    }
+});
+
+// Buttons marked data-print open the browser print dialog (Save as PDF works too, with Bengali text intact).
+document.addEventListener('click', (event) => {
+    if (event.target instanceof Element && event.target.closest('[data-print]')) {
+        window.print();
     }
 });

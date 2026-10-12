@@ -32,6 +32,11 @@ class CollectionSchedule extends Model
     use HasFactory;
 
     /**
+     * How far back unpaid rows stay on the officer's list as arrears.
+     */
+    public const ARREARS_DAYS = 30;
+
+    /**
      * @var array<string, mixed>
      */
     protected $attributes = [
@@ -59,6 +64,23 @@ class CollectionSchedule extends Model
     {
         $query->where('due_date', '>=', $date->toDateString())
             ->where('due_date', '<', $date->copy()->addDay()->toDateString());
+    }
+
+    /**
+     * The officer's field list on $today (Dhaka): today's non-cancelled rows plus missed or partially paid
+     * rows from the last ARREARS_DAYS days.
+     *
+     * @param  Builder<self>  $query
+     */
+    public function scopeOnDayListOf(Builder $query, User $officer, Carbon $today): void
+    {
+        $query->where('field_officer_id', $officer->id)
+            ->where(fn (Builder $rows) => $rows
+                ->where(fn (Builder $todays) => $todays->dueOn($today)->where('status', '!=', ScheduleStatus::Cancelled))
+                ->orWhere(fn (Builder $earlier) => $earlier
+                    ->where('due_date', '>=', $today->copy()->subDays(self::ARREARS_DAYS)->toDateString())
+                    ->where('due_date', '<', $today->toDateString())
+                    ->whereIn('status', [ScheduleStatus::Missed, ScheduleStatus::PartiallyPaid])));
     }
 
     /**

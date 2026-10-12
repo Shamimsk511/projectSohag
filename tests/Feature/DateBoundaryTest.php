@@ -145,6 +145,7 @@ class DateBoundaryTest extends TestCase
         $this->assertSame(['7 18 * * *', 'Asia/Dhaka'], $events['schedules:generate']);
         $this->assertSame(['17 0 * * *', 'Asia/Dhaka'], $events['schedules:mark-missed']);
         $this->assertSame(['27 3 * * *', 'Asia/Dhaka'], $events['photos:prune-temp']);
+        $this->assertSame(['23 0 * * *', 'Asia/Dhaka'], $events['days:close']);
     }
 
     public function test_office_entries_default_to_the_dhaka_month(): void

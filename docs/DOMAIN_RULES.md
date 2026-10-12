@@ -20,7 +20,9 @@ Takes savings/deposits from members, gives loans, collects installments in the f
 - **Reversal**: a transaction that cancels another by reference; the original stays.
 
 ## Transaction types
-loan_disbursement, loan_collection, saving_deposit, saving_withdrawal, investment_deposit, investment_return, office_income, office_expense, adjustment, reversal.
+loan_disbursement, loan_collection, saving_deposit, saving_withdrawal, saving_opening_balance, saving_maturity_credit, investment_deposit, investment_return, office_income, office_expense, adjustment, reversal.
+
+Saving accounts may carry an agreed amount (`contract_amount`, admin-set, changed only through `account_adjustments`). `saving_opening_balance` = amount saved before the system (first entry only). `saving_maturity_credit` = book credit bringing total saved up to the agreed amount, never beyond. Both are no-cash, no-receipt rows that add to the saving balance; the member then withdraws normally.
 
 ## Rules for money movement
 1. Amount > 0 always; direction comes from type.

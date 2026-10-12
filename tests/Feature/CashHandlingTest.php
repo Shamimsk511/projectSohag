@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Enums\CashHandoverMode;
 use App\Enums\PaymentMethod;
 use App\Enums\Role;
 use App\Enums\TransactionType;
@@ -13,6 +14,7 @@ use App\Models\Transaction;
 use App\Models\User;
 use App\Services\CashService;
 use App\Services\LedgerService;
+use App\Services\SettingService;
 use App\Services\TransactionService;
 use App\Support\Money;
 use App\Support\TransactionData;
@@ -207,5 +209,66 @@ class CashHandlingTest extends TestCase
         DailyClosing::factory()->create(['date' => $this->today->toDateString()]);
 
         $this->actingAs($this->officer)->get(route('field.home'))->assertSee(__('app.closings.today_closed'));
+    }
+
+    public function test_automatic_mode_hands_over_each_cash_collection_at_once(): void
+    {
+        app(SettingService::class)->setCashHandoverMode(CashHandoverMode::Automatic, $this->admin);
+
+        $collection = $this->collect('500');
+        $this->collect('300', PaymentMethod::MobileBanking);
+
+        $handover = CashHandover::query()->sole();
+        $this->assertSame($collection->id, $handover->transaction_id);
+        $this->assertSame(50_000, $handover->amount->poisha);
+        $this->assertSame($this->officer->id, $handover->confirmed_by);
+        $this->assertSame(0, $this->cashInHand());
+        $this->assertSame(50_000, app(LedgerService::class)->officeCashBalance(null)->poisha);
+        $this->assertSame(1, AuditLog::query()->where('action', 'cash.handed_over')->count());
+    }
+
+    public function test_reversing_an_automatically_handed_over_collection_leaves_no_cash_anywhere(): void
+    {
+        app(SettingService::class)->setCashHandoverMode(CashHandoverMode::Automatic, $this->admin);
+        $collection = $this->collect('500');
+
+        app(TransactionService::class)->reverse($collection, 'Wrong member', User::factory()->withRole(Role::Manager)->create());
+
+        $this->assertSame(0, $this->cashInHand());
+        $this->assertSame(0, app(LedgerService::class)->officeCashBalance(null)->poisha);
+        $this->assertSame(1, CashHandover::count());
+    }
+
+    public function test_switching_mode_never_changes_earlier_figures(): void
+    {
+        $this->collect('200');
+        app(SettingService::class)->setCashHandoverMode(CashHandoverMode::Automatic, $this->admin);
+        $this->collect('500');
+
+        $this->assertSame(20_000, $this->cashInHand());
+
+        app(SettingService::class)->setCashHandoverMode(CashHandoverMode::Manual, $this->admin);
+        $this->collect('100');
+
+        $this->assertSame(30_000, $this->cashInHand());
+        $this->assertSame(1, CashHandover::count());
+    }
+
+    public function test_repeated_client_uuid_does_not_hand_over_twice(): void
+    {
+        app(SettingService::class)->setCashHandoverMode(CashHandoverMode::Automatic, $this->admin);
+        $data = new TransactionData(
+            type: TransactionType::SavingDeposit,
+            amount: Money::fromTaka('500'),
+            date: $this->today,
+            account: $this->saving,
+            clientUuid: '0b9a7c1e-2f61-4d4e-9a55-0d0c8f6c1a01',
+            fieldOfficer: $this->officer,
+        );
+
+        app(TransactionService::class)->record($data, $this->officer);
+        app(TransactionService::class)->record($data, $this->officer);
+
+        $this->assertSame(1, CashHandover::count());
     }
 }

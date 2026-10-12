@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Models\Party;
-use App\Support\Numerals;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 
@@ -29,7 +28,7 @@ class PartyTableQuery
         $filtered = Party::query()
             ->when($params['area_id'] ?? null, fn (Builder $query, int|string $areaId) => $query->where('area_id', $areaId))
             ->when($params['status'] ?? null, fn (Builder $query, string $status) => $query->where('status', $status))
-            ->when(trim($params['search']['value'] ?? ''), $this->search(...));
+            ->when(trim($params['search']['value'] ?? ''), fn (Builder $query, string $term) => $query->search($term));
 
         $order = $params['order'][0] ?? ['column' => 0, 'dir' => 'desc'];
 
@@ -44,22 +43,5 @@ class PartyTableQuery
                 ->take((int) ($params['length'] ?? 25))
                 ->get(),
         ];
-    }
-
-    /**
-     * Match code, name, phone or NID. Bengali digits are accepted; LIKE wildcards are taken literally
-     * via an explicit ESCAPE character ('!' because a backslash literal differs between MySQL and SQLite).
-     *
-     * @param  Builder<Party>  $query
-     */
-    private function search(Builder $query, string $term): void
-    {
-        $like = '%'.str_replace(['!', '%', '_'], ['!!', '!%', '!_'], Numerals::toAscii($term)).'%';
-
-        $query->where(function (Builder $query) use ($like): void {
-            foreach (['party_code', 'name', 'phone', 'national_id'] as $column) {
-                $query->orWhereRaw("{$column} like ? escape '!'", [$like]);
-            }
-        });
     }
 }

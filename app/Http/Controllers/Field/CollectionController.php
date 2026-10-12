@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Field;
 
-use App\Enums\ScheduleStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Field\StoreCollectionRequest;
 use App\Models\CollectionSchedule;
@@ -11,7 +10,7 @@ use App\Services\LedgerService;
 use App\Services\TransactionService;
 use App\Support\Money;
 use App\Support\Numerals;
-use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
@@ -21,11 +20,6 @@ use Illuminate\View\View;
  */
 class CollectionController extends Controller
 {
-    /**
-     * How far back unpaid rows stay on the officer's list as arrears.
-     */
-    private const ARREARS_DAYS = 30;
-
     public function __construct(
         private readonly LedgerService $ledger,
         private readonly TransactionService $transactions,
@@ -35,19 +29,13 @@ class CollectionController extends Controller
     {
         $today = today(config('app.display_timezone'));
 
-        $schedules = $this->ownRows()
-            ->dueOn($today)
-            ->where('status', '!=', ScheduleStatus::Cancelled)
+        [$schedules, $earlier] = CollectionSchedule::query()
+            ->onDayListOf($this->actor(), $today)
+            ->with(['party.area', 'account'])
             ->get()
-            ->sortBy(fn (CollectionSchedule $schedule): string => $schedule->party->name)
-            ->values();
-
-        $earlier = $this->ownRows()
-            ->where('due_date', '>=', $today->copy()->subDays(self::ARREARS_DAYS)->toDateString())
-            ->where('due_date', '<', $today->toDateString())
-            ->whereIn('status', [ScheduleStatus::Missed, ScheduleStatus::PartiallyPaid])
-            ->orderBy('due_date')
-            ->get();
+            ->partition(fn (CollectionSchedule $schedule): bool => $schedule->due_date->toDateString() === $today->toDateString());
+        $schedules = $schedules->sortBy(fn (CollectionSchedule $schedule): string => $schedule->party->name)->values();
+        $earlier = $earlier->sortBy(fn (CollectionSchedule $schedule): string => $schedule->due_date->toDateString())->values();
 
         $rows = $schedules->concat($earlier);
         $collected = $this->ledger->collectedForSchedules($rows->modelKeys());
@@ -97,9 +85,15 @@ class CollectionController extends Controller
             ])->values()->all(),
         ];
 
+        // One card per client: today's rows first, then their earlier unpaid ones.
+        $clients = $rows->groupBy('party_id')
+            ->sortBy(fn (Collection $partyRows): string => $partyRows->first()->party->name)
+            ->values();
+
         return view('field.home', [
             'schedules' => $schedules,
-            'earlier' => $earlier,
+            'clients' => $clients,
+            'today' => $today->toDateString(),
             'collected' => $collected,
             'remaining' => $remaining,
             'expectedTotal' => $expectedTotal,
@@ -140,16 +134,6 @@ class CollectionController extends Controller
             'party' => $schedule->party->name,
             'receipt' => $transaction->receipt_no,
         ]));
-    }
-
-    /**
-     * @return Builder<CollectionSchedule>
-     */
-    private function ownRows(): Builder
-    {
-        return CollectionSchedule::query()
-            ->where('field_officer_id', $this->actor()->id)
-            ->with(['party.area', 'account']);
     }
 
     /**

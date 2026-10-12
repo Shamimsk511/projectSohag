@@ -33,3 +33,35 @@
         break-inside: avoid;
     }
 }
+
+/* Client photo placeholder on the day list, same size as the photo. */
+.field-avatar {
+    width: 56px;
+    height: 56px;
+}
+
+/* Lets a long client name truncate next to the photo. */
+.field-client-name {
+    min-width: 0;
+}
+
+/* Money on field screens: large and bold so it reads at arm's length in daylight. */
+.field-amount {
+    font-size: 1.35rem;
+    font-weight: 700;
+    line-height: 1.2;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.field-amount-label {
+    font-size: 0.95rem;
+    color: var(--bs-secondary-color);
+}
+
+/* Three figures side by side on a 360px phone. */
+@media (max-width: 380px) {
+    .field-amount {
+        font-size: 1.15rem;
+    }
+}

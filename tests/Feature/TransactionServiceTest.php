@@ -238,6 +238,66 @@ class TransactionServiceTest extends TestCase
         $this->assertTrue(app(LedgerService::class)->savingBalance($saving)->isZero());
     }
 
+    public function test_opening_balance_counts_as_saved_without_receipt_or_cash(): void
+    {
+        $saving = Account::factory()->create(['opened_at' => '2023-01-01']);
+
+        $opening = $this->record(TransactionType::SavingOpeningBalance, '9,00,000', $saving, date: Carbon::parse('2026-10-01'));
+
+        $this->assertNull($opening->receipt_no);
+        $this->assertNull($opening->payment_method);
+        $this->assertSame(90_000_000, app(LedgerService::class)->savingBalance($saving)->poisha);
+        $this->assertSame(90_000_000, app(LedgerService::class)->totalSavingBalance()->poisha);
+        $this->assertSame(90_000_000, app(LedgerService::class)->statement($saving)->closing->poisha);
+    }
+
+    public function test_opening_balance_must_be_the_first_entry_of_a_saving_account(): void
+    {
+        $saving = Account::factory()->create();
+        $this->assertRejected(fn () => $this->record(TransactionType::SavingOpeningBalance, '100', Account::factory()->loan()->create()));
+
+        $this->record(TransactionType::SavingOpeningBalance, '100', $saving);
+        $this->assertRejected(fn () => $this->record(TransactionType::SavingOpeningBalance, '100', $saving));
+
+        $other = Account::factory()->create();
+        $this->record(TransactionType::SavingDeposit, '100', $other);
+        $this->assertRejected(fn () => $this->record(TransactionType::SavingOpeningBalance, '100', $other));
+    }
+
+    public function test_maturity_credit_fills_up_to_the_agreed_amount_and_can_be_withdrawn(): void
+    {
+        $saving = Account::factory()->create(['contract_amount' => Money::fromTaka('1000000')]);
+        $this->record(TransactionType::SavingOpeningBalance, '600000', $saving);
+        $this->record(TransactionType::SavingDeposit, '300000', $saving);
+        $this->record(TransactionType::SavingWithdrawal, '50000', $saving);
+
+        $this->assertRejected(fn () => $this->record(TransactionType::SavingMaturityCredit, '100000.01', $saving));
+        $credit = $this->record(TransactionType::SavingMaturityCredit, '100000', $saving);
+
+        $this->assertNull($credit->receipt_no);
+        $this->assertNull($credit->payment_method);
+        $this->assertSame(100_000_000, app(LedgerService::class)->savingCredited($saving)->poisha);
+        $this->assertSame(95_000_000, app(LedgerService::class)->savingBalance($saving)->poisha);
+        $this->assertRejected(fn () => $this->record(TransactionType::SavingMaturityCredit, '1', $saving));
+
+        $this->record(TransactionType::SavingWithdrawal, '950000', $saving);
+        $this->assertTrue(app(LedgerService::class)->savingBalance($saving)->isZero());
+    }
+
+    public function test_maturity_credit_needs_an_agreed_amount(): void
+    {
+        $this->assertRejected(fn () => $this->record(TransactionType::SavingMaturityCredit, '100', Account::factory()->create()));
+    }
+
+    public function test_cannot_reverse_an_opening_balance_that_was_already_withdrawn(): void
+    {
+        $saving = Account::factory()->create();
+        $opening = $this->record(TransactionType::SavingOpeningBalance, '100', $saving);
+        $this->record(TransactionType::SavingWithdrawal, '60', $saving);
+
+        $this->assertRejected(fn () => $this->service->reverse($opening, 'mistake', $this->manager));
+    }
+
     private function record(
         TransactionType $type,
         string $taka,

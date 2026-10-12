@@ -34,6 +34,9 @@ export function initConfirmForms(root = document) {
                 if (strings.input) {
                     form.querySelector('input[name="reason"]').value = result.value.trim();
                 }
+                form.querySelectorAll('button[type="submit"]').forEach((button) => {
+                    button.disabled = true;
+                });
                 form.submit();
             }
         });

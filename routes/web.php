@@ -6,16 +6,21 @@ use App\Http\Controllers\Admin\AreaController;
 use App\Http\Controllers\Admin\CashHandoverController;
 use App\Http\Controllers\Admin\CollectionPlanController;
 use App\Http\Controllers\Admin\DailyClosingController;
+use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\HolidayController;
 use App\Http\Controllers\Admin\OfficeEntryController;
 use App\Http\Controllers\Admin\PartyAssignmentController;
 use App\Http\Controllers\Admin\PartyController;
 use App\Http\Controllers\Admin\PartyPhotoUploadController;
+use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\Admin\ScheduleController;
+use App\Http\Controllers\Admin\SearchController;
+use App\Http\Controllers\Admin\SettingController;
 use App\Http\Controllers\Admin\TransactionController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Field\CollectionController;
 use App\Http\Controllers\Field\CollectionSyncController;
+use App\Http\Controllers\Field\PartyCollectionController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\ReceiptController;
 use Illuminate\Support\Facades\Auth;
@@ -28,10 +33,18 @@ Auth::routes(['register' => false]);
 
 Route::middleware(['auth', RoleMiddleware::using(Role::names(Role::office()))])
     ->prefix('admin')->name('admin.')->group(function () {
-        Route::view('/', 'admin.dashboard')->name('dashboard');
+        Route::get('/', DashboardController::class)->name('dashboard');
+        Route::get('search', SearchController::class)->name('search');
+        Route::get('reports/daily-collection', [ReportController::class, 'dailyCollection'])->name('reports.daily-collection');
+        Route::get('reports/officer-performance', [ReportController::class, 'officerPerformance'])->name('reports.officer-performance');
+        Route::get('reports/outstanding', [ReportController::class, 'outstanding'])->name('reports.outstanding');
+        Route::get('reports/missed-partial', [ReportController::class, 'missedPartial'])->name('reports.missed-partial');
+        Route::get('reports/cash-reconciliation', [ReportController::class, 'cashReconciliation'])->name('reports.cash-reconciliation');
+        Route::get('reports/monthly', [ReportController::class, 'monthly'])->name('reports.monthly');
         Route::resource('users', UserController::class)->except(['show', 'destroy']);
         Route::resource('areas', AreaController::class)->except(['show', 'destroy']);
         Route::get('parties/data', [PartyController::class, 'data'])->name('parties.data');
+        Route::get('parties/{party}/statement', [PartyController::class, 'statement'])->name('parties.statement');
         Route::get('parties/{party}/photo', [PartyController::class, 'photo'])->name('parties.photo');
         Route::resource('parties', PartyController::class)->except(['destroy']);
         Route::post('parties/{party}/assignment', [PartyAssignmentController::class, 'store'])->name('parties.assignment.store');
@@ -54,6 +67,8 @@ Route::middleware(['auth', RoleMiddleware::using(Role::names(Role::office()))])
         Route::post('office-entries', [OfficeEntryController::class, 'store'])->name('office-entries.store');
         Route::resource('cash-handovers', CashHandoverController::class)->only(['index', 'store']);
         Route::resource('daily-closings', DailyClosingController::class)->only(['index', 'store']);
+        Route::get('settings', [SettingController::class, 'edit'])->name('settings.edit');
+        Route::put('settings', [SettingController::class, 'update'])->name('settings.update');
         Route::get('transactions/{transaction}/receipt', [ReceiptController::class, 'show'])->name('transactions.receipt');
         Route::post('transactions/{transaction}/reverse', [TransactionController::class, 'reverse'])->name('transactions.reverse');
         Route::post('uploads/party-photo', [PartyPhotoUploadController::class, 'store'])->name('uploads.party-photo.store');
@@ -68,6 +83,9 @@ Route::middleware(['auth', RoleMiddleware::using(Role::names([Role::FieldOfficer
         Route::get('/', [CollectionController::class, 'index'])->name('home');
         Route::get('schedules/{schedule}/collect', [CollectionController::class, 'create'])->name('collections.create');
         Route::post('schedules/{schedule}/collections', [CollectionController::class, 'store'])->name('collections.store');
+        Route::get('parties/{party}/collect', [PartyCollectionController::class, 'create'])->name('parties.collect');
+        Route::post('parties/{party}/collections', [PartyCollectionController::class, 'store'])->name('parties.collections.store');
+        Route::get('parties/{party}/photo', [PartyCollectionController::class, 'photo'])->name('parties.photo');
         Route::get('receipts/{transaction}', [ReceiptController::class, 'show'])->name('receipts.show');
         // Filled by field.js from this phone's offline queue (IndexedDB); the server has nothing to add.
         Route::view('sync', 'field.sync')->name('sync');

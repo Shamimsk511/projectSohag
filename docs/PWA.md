@@ -4,7 +4,7 @@ Goal: an officer installs the app on their phone, sees today's collection list, 
 
 ## Scope
 - Routes under `/field`, separate Blade layout, separate Vite entry (`resources/js/field.js`). No jQuery, no DataTables, no AdminLTE sidebar.
-- Screens: Today (summary + list), Party detail, Collect payment, Receipt, History (own), Sync status, Profile.
+- Screens: Today (summary + search + one card per client), Collect all (one client, every open account), Collect payment, Receipt, History (own), Sync status, Profile.
 
 ## Installability
 - `public/manifest.webmanifest`: name, short_name, `start_url: /field`, `scope: /field` (no trailing slash: `/field` itself would fall outside `/field/`), `display: standalone`, theme/background colors, 192 and 512 px icons plus a maskable icon.

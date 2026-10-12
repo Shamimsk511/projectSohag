@@ -11,12 +11,12 @@ use Illuminate\Support\Carbon;
 use LogicException;
 
 /**
- * A closed business date. Only admin may post transactions or cash handovers dated on it.
+ * A closed business date, closed by staff or (closed_by null) by the nightly `days:close` command. Only admin may post transactions or cash handovers dated on it.
  * Immutable: there is no reopen.
  *
  * @property int $id
  * @property Carbon $date
- * @property int $closed_by
+ * @property int|null $closed_by
  * @property Carbon $created_at
  */
 #[Fillable(['date', 'closed_by'])]

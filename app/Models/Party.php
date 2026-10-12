@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\ActiveStatus;
 use App\Enums\Gender;
+use App\Support\Numerals;
 use Database\Factories\PartyFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
@@ -21,6 +22,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $party_code
  * @property string $name
  * @property string $phone
+ * @property string|null $client_number
  * @property string|null $national_id
  * @property Carbon|null $date_of_birth
  * @property Gender|null $gender
@@ -31,7 +33,7 @@ use Illuminate\Support\Carbon;
  * @property ActiveStatus $status
  */
 #[Fillable([
-    'name', 'father_or_husband_name', 'mother_name', 'date_of_birth', 'gender', 'phone', 'national_id',
+    'name', 'client_number', 'father_or_husband_name', 'mother_name', 'date_of_birth', 'gender', 'phone', 'national_id',
     'address', 'area_id', 'photo_path', 'nominee_name', 'nominee_relation', 'nominee_phone',
     'nominee_national_id', 'status',
 ])]
@@ -102,6 +104,26 @@ class Party extends Model
     public function scopeAssignedTo(Builder $query, User $officer): void
     {
         $query->whereHas('activeAssignment', fn (Builder $assignment) => $assignment->where('field_officer_id', $officer->id));
+    }
+
+    /**
+     * Match code, client number, name, phone, NID or one of the member's account numbers. Bengali digits
+     * are accepted; LIKE wildcards are taken literally via an explicit ESCAPE character ('!' because a
+     * backslash literal differs between MySQL and SQLite).
+     *
+     * @param  Builder<self>  $query
+     */
+    public function scopeSearch(Builder $query, string $term): void
+    {
+        $like = '%'.str_replace(['!', '%', '_'], ['!!', '!%', '!_'], Numerals::toAscii(trim($term))).'%';
+
+        $query->where(function (Builder $query) use ($like): void {
+            foreach (['party_code', 'client_number', 'name', 'phone', 'national_id'] as $column) {
+                $query->orWhereRaw("{$column} like ? escape '!'", [$like]);
+            }
+
+            $query->orWhereHas('accounts', fn (Builder $account) => $account->whereRaw("account_number like ? escape '!'", [$like]));
+        });
     }
 
     public function isActive(): bool

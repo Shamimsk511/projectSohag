@@ -12,18 +12,20 @@ use Illuminate\Support\Carbon;
 use LogicException;
 
 /**
- * Cash a field officer handed to the office, recorded (and so confirmed) by the staff who took it.
- * Immutable; lowers the officer's cash in hand, never touches the ledger.
+ * Cash a field officer handed to the office, recorded (and so confirmed) by the staff who took it,
+ * or written automatically with a cash collection (`transaction_id` set, confirmed by whoever
+ * recorded the collection). Immutable; lowers the officer's cash in hand, never touches the ledger.
  *
  * @property int $id
  * @property int $field_officer_id
+ * @property int|null $transaction_id
  * @property Money $amount
  * @property Carbon $handover_date
  * @property string|null $note
  * @property int $confirmed_by
  * @property Carbon $created_at
  */
-#[Fillable(['field_officer_id', 'amount', 'handover_date', 'note', 'confirmed_by'])]
+#[Fillable(['field_officer_id', 'transaction_id', 'amount', 'handover_date', 'note', 'confirmed_by'])]
 class CashHandover extends Model
 {
     /** @use HasFactory<CashHandoverFactory> */
@@ -54,6 +56,14 @@ class CashHandover extends Model
     public function fieldOfficer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'field_officer_id');
+    }
+
+    /**
+     * @return BelongsTo<Transaction, $this>
+     */
+    public function transaction(): BelongsTo
+    {
+        return $this->belongsTo(Transaction::class);
     }
 
     /**

@@ -2,10 +2,14 @@
 
 <div class="card-body">
     <div class="row">
-        <div class="col-md-6 mb-3">
-            <x-form.input name="name" :label="__('app.parties.name')" :value="$party->name" required maxlength="255" autofocus />
+        <div class="col-md-4 mb-3">
+            <x-form.input name="client_number" :label="__('app.parties.client_number')" :value="$party->client_number"
+                :hint="__('app.parties.client_number_hint')" maxlength="30" autofocus />
         </div>
-        <div class="col-md-6 mb-3">
+        <div class="col-md-4 mb-3">
+            <x-form.input name="name" :label="__('app.parties.name')" :value="$party->name" required maxlength="255" />
+        </div>
+        <div class="col-md-4 mb-3">
             <x-form.input name="phone" type="tel" :label="__('app.parties.phone')" :value="$party->phone"
                 :hint="__('app.users.phone_hint')" inputmode="numeric" required />
         </div>

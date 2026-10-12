@@ -35,6 +35,8 @@ function initPartyTable(table) {
         serverSide: true,
         processing: true,
         searchDelay: 400,
+        // ?search= comes from the top bar search when it matched more than one member.
+        search: { search: new URLSearchParams(window.location.search).get('search') ?? '' },
         pageLength: 25,
         order: [[0, 'desc']],
         ajax: {

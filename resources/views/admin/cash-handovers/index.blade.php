@@ -7,6 +7,9 @@
     @if (session('status'))
         <div class="alert alert-success">{{ session('status') }}</div>
     @endif
+    @if ($automatic)
+        <div class="alert alert-info">{{ __('app.cash.automatic_on') }}</div>
+    @endif
 
     <div class="row">
         <div class="col-lg-4 order-lg-2">
@@ -96,7 +99,12 @@
                                     <td>{{ $handover->fieldOfficer->name }}</td>
                                     <td class="text-end text-nowrap">{{ $handover->amount->format() }}</td>
                                     <td>{{ $handover->confirmedBy->name }}</td>
-                                    <td>{{ $handover->note }}</td>
+                                    <td>
+                                        @if ($handover->transaction_id)
+                                            <span class="badge text-bg-secondary">{{ __('app.cash.automatic') }}</span>
+                                        @endif
+                                        {{ $handover->note }}
+                                    </td>
                                 </tr>
                             @empty
                                 <tr>

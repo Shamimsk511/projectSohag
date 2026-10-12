@@ -18,6 +18,9 @@ class StorePartyRequest extends FormRequest
     /** Bangladeshi NID: 10 (smart card), 13 or 17 digits (old format). */
     private const string NATIONAL_ID = 'regex:/^([0-9]{10}|[0-9]{13}|[0-9]{17})$/';
 
+    /** Number from the NGO's earlier records: letters, digits, dash or slash, e.g. 102, C-102, 12/A. */
+    private const string CLIENT_NUMBER = 'regex:/^[A-Za-z0-9\-\/]+$/';
+
     public function authorize(): bool
     {
         return $this->user()?->can('create', Party::class) ?? false;
@@ -43,6 +46,7 @@ class StorePartyRequest extends FormRequest
 
         return [
             'name' => ['required', 'string', 'max:255'],
+            'client_number' => ['nullable', 'string', 'max:30', self::CLIENT_NUMBER, Rule::unique('parties')->ignore($party)],
             'father_or_husband_name' => ['nullable', 'string', 'max:255'],
             'mother_name' => ['nullable', 'string', 'max:255'],
             'date_of_birth' => ['nullable', 'date', 'before:today', 'after:1900-01-01'],
@@ -74,6 +78,10 @@ class StorePartyRequest extends FormRequest
             if (is_string($this->input($field))) {
                 $normalised[$field] = Numerals::toAscii(str_replace([' ', '-'], '', $this->input($field)));
             }
+        }
+
+        if (is_string($this->input('client_number'))) {
+            $normalised['client_number'] = Numerals::toAscii(trim($this->input('client_number')));
         }
 
         $this->merge($normalised);

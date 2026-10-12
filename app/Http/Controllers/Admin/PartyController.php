@@ -3,16 +3,20 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\PartyStatementRequest;
 use App\Http\Requests\Admin\PartyTableRequest;
 use App\Http\Requests\Admin\StorePartyRequest;
 use App\Http\Requests\Admin\UpdatePartyRequest;
+use App\Models\Account;
 use App\Models\Area;
 use App\Models\Party;
 use App\Models\PartyAssignment;
 use App\Models\User;
+use App\Services\LedgerService;
 use App\Services\PartyPhotoStore;
 use App\Services\PartyService;
 use App\Services\PartyTableQuery;
+use App\Support\Money;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -72,16 +76,41 @@ class PartyController extends Controller
         return redirect()->route('admin.parties.show', $party)->with('status', __('app.parties.created'));
     }
 
-    public function show(Party $party): View
+    public function show(Party $party, LedgerService $ledger): View
     {
         Gate::authorize('view', $party);
 
         $party->load(['area', 'assignments.fieldOfficer', 'assignments.assignedBy', 'accounts' => fn ($accounts) => $accounts->orderBy('closed_at')->orderBy('id')]);
 
+        $balances = $party->accounts->mapWithKeys(fn (Account $account): array => [$account->id => $ledger->remainingBalance($account)]);
+
         return view('admin.parties.show', [
             'party' => $party,
+            'balances' => $balances,
+            'totals' => [
+                'saving' => Money::fromPoisha($party->accounts->reject->isLoan()->sum(fn (Account $account): int => $balances[$account->id]->poisha)),
+                'loan' => Money::fromPoisha($party->accounts->filter->isLoan()->sum(fn (Account $account): int => $balances[$account->id]->poisha)),
+            ],
             'currentAssignment' => $party->assignments->first(fn (PartyAssignment $assignment): bool => $assignment->isActive()),
             'officers' => Gate::allows('assign', $party) ? User::activeFieldOfficers()->orderBy('name')->get() : collect(),
+        ]);
+    }
+
+    /**
+     * Customer ledger: every account of the party (closed ones too), each with its own statement.
+     */
+    public function statement(PartyStatementRequest $request, Party $party, LedgerService $ledger): View
+    {
+        $accounts = $party->accounts()->orderBy('closed_at')->orderBy('id')->get();
+        $accounts->each(fn (Account $account) => $account->setRelation('party', $party));
+
+        return view('admin.parties.statement', [
+            'party' => $party,
+            'statements' => $accounts->map(fn (Account $account): array => [
+                'account' => $account,
+                'statement' => $ledger->statement($account, $request->periodFrom(), $request->periodTo()),
+                'remaining' => $ledger->remainingBalance($account),
+            ]),
         ]);
     }
 

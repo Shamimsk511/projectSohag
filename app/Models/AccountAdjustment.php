@@ -11,11 +11,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
 
 /**
- * Record of a contract amount change: old and new value, why, and who. Never edited.
+ * Record of a contract (loan) or agreed (saving) amount change: old value (null when first set), new
+ * value, why, and who. Never edited.
  *
  * @property int $id
  * @property int $account_id
- * @property Money $old_amount
+ * @property Money|null $old_amount
  * @property Money $new_amount
  * @property string $reason
  * @property int $created_by

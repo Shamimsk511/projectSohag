@@ -8,7 +8,7 @@ import 'bootstrap-icons/font/bootstrap-icons.min.css';
 import '../css/field.css';
 import { clearToday, loadToday, queuedFor, removeQueued, saveToday } from './field/db.js';
 import { initOfflinePage } from './field/offline-page.js';
-import { localizeDigits, parseTaka, queueCollection, renderQueue, t, uuid } from './field/queue.js';
+import { localizeDigits, parseTaka, queueCollection, renderQueue, t, toAsciiDigits, uuid } from './field/queue.js';
 import { initSyncPage } from './field/sync-page.js';
 import { pruneSynced, syncQueue } from './field/sync.js';
 
@@ -28,6 +28,22 @@ document.addEventListener('click', (event) => {
         input.value = input.dataset.fullDue;
         input.focus();
     }
+});
+
+// Day list search: filters client cards on the phone (name, codes, phone; Bengali digits typed or not).
+document.addEventListener('input', (event) => {
+    const input = event.target;
+    if (!(input instanceof HTMLInputElement) || !input.matches('.js-party-search')) {
+        return;
+    }
+    const query = toAsciiDigits(input.value).trim().toLowerCase();
+    let shown = 0;
+    document.querySelectorAll('[data-party-card]').forEach((card) => {
+        const match = card.dataset.search.includes(query);
+        card.classList.toggle('d-none', !match);
+        shown += match ? 1 : 0;
+    });
+    document.querySelector('[data-party-no-match]')?.classList.toggle('d-none', shown > 0);
 });
 
 // Receipt buttons: print, and share through the phone's share sheet where supported.
@@ -98,6 +114,7 @@ const RELOADED_KEY = 'field-sync-reloaded';
 const FLASH_KEY = 'field-flash';
 let retryDelay = RETRY_MIN_MS;
 let retryTimer = null;
+let flashMessage = null; // shown in the queue status box until the page is left
 
 function storage(action) {
     try {
@@ -112,7 +129,7 @@ async function runSync({ resetBackoff = false } = {}) {
     if (resetBackoff) {
         retryDelay = RETRY_MIN_MS;
     }
-    await renderQueue(userId, 'syncing').catch(() => {});
+    await renderQueue(userId, 'syncing', flashMessage).catch(() => {});
 
     let outcome;
     try {
@@ -144,15 +161,15 @@ async function runSync({ resetBackoff = false } = {}) {
         }
         shown = 'reload';
     }
-    await renderQueue(userId, shown).catch(() => {});
+    await renderQueue(userId, shown, flashMessage).catch(() => {});
     document.dispatchEvent(new CustomEvent('field:queue-changed'));
     return outcome;
 }
 
 if (userId && csrfToken && 'indexedDB' in window) {
-    const flash = storage((session) => session.getItem(FLASH_KEY));
+    flashMessage = storage((session) => session.getItem(FLASH_KEY));
     storage((session) => session.removeItem(FLASH_KEY));
-    renderQueue(userId, null, flash ? t(flash) : null).catch(() => {});
+    renderQueue(userId, null, flashMessage).catch(() => {});
     pruneSynced(userId).catch(() => {}).finally(() => runSync());
     window.addEventListener('online', () => runSync({ resetBackoff: true }));
     initSyncPage(userId, runSync);
@@ -213,8 +230,76 @@ if (userId && csrfToken && 'indexedDB' in window) {
             submit.disabled = false;
             renderQueue(userId).catch(() => {});
         } else {
-            storage((session) => session.setItem(FLASH_KEY, 'saved_offline'));
+            storage((session) => session.setItem(FLASH_KEY, t('saved_offline')));
             window.location.href = '/field';
         }
+    });
+
+    // "Collect all" for one client: one queue item per filled account row, one sync for all of them.
+    // Rejected rows stay in the queue (fix or discard on /field/sync), so nothing is lost or posted twice.
+    document.addEventListener('submit', async (event) => {
+        const form = event.target;
+        if (!(form instanceof HTMLFormElement) || !form.matches('.js-queue-collect-many') || event.defaultPrevented) {
+            return;
+        }
+        event.preventDefault();
+        const error = document.querySelector('[data-queue-error]');
+        const showError = (message) => {
+            error.textContent = message;
+            error.classList.remove('d-none');
+            window.scrollTo(0, 0);
+        };
+
+        const rows = [];
+        for (const row of form.querySelectorAll('[data-collect-row]')) {
+            const input = row.querySelector('input[name$="[amount]"]');
+            if (input.value.trim() === '') {
+                continue;
+            }
+            const amount = parseTaka(input.value);
+            if (!amount) {
+                showError(`${row.dataset.accountNumber}: ${t('invalid_amount')}`);
+                input.focus();
+                return;
+            }
+            rows.push({ row, amount, clientUuid: row.querySelector('input[name$="[client_uuid]"]').value.toLowerCase() });
+        }
+        if (rows.length === 0) {
+            showError(form.dataset.nothing);
+            return;
+        }
+        const submit = form.querySelector('[type="submit"]');
+        submit.disabled = true;
+        error.classList.add('d-none');
+
+        try {
+            for (const { row, amount, clientUuid } of rows) {
+                await queueCollection({
+                    userId,
+                    clientUuid,
+                    scheduleId: row.dataset.scheduleId,
+                    accountId: row.dataset.accountId,
+                    partyName: form.dataset.partyName,
+                    accountNumber: row.dataset.accountNumber,
+                    amount,
+                    paymentMethod: form.elements.payment_method.value,
+                    description: form.elements.description.value.trim(),
+                });
+            }
+        } catch {
+            form.submit(); // IndexedDB unusable: plain POST, still idempotent by client_uuid
+            return;
+        }
+
+        const { results } = await runSync({ resetBackoff: true });
+        // Rejected rows show in the queue status box on the list; only say what was saved or still waits.
+        const statusOf = ({ clientUuid }) => results.get(clientUuid)?.status ?? 'error';
+        const saved = rows.filter((row) => ['created', 'duplicate'].includes(statusOf(row))).length;
+        if (rows.some((row) => statusOf(row) === 'error')) {
+            storage((session) => session.setItem(FLASH_KEY, t('saved_offline')));
+        } else if (saved > 0) {
+            storage((session) => session.setItem(FLASH_KEY, t('saved_many', { count: localizeDigits(String(saved)) })));
+        }
+        window.location.href = '/field';
     });
 }

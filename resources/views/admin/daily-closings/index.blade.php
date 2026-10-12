@@ -7,6 +7,9 @@
     @if (session('status'))
         <div class="alert alert-success">{{ session('status') }}</div>
     @endif
+    @if ($autoClose)
+        <div class="alert alert-info">{{ __('app.closings.auto_on') }}</div>
+    @endif
 
     <div class="row">
         <div class="col-lg-4 order-lg-2">
@@ -48,7 +51,7 @@
                             @forelse ($closings as $closing)
                                 <tr>
                                     <td class="text-nowrap">{{ \App\Support\Numerals::localize($closing->date->format('d/m/Y')) }}</td>
-                                    <td>{{ $closing->closedBy->name }}</td>
+                                    <td>{{ $closing->closedBy?->name ?? __('app.closings.system') }}</td>
                                     <td class="text-nowrap">
                                         {{ \App\Support\Numerals::localize($closing->created_at->timezone(config('app.display_timezone'))->format('d/m/Y H:i')) }}
                                     </td>

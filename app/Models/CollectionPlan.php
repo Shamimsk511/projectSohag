@@ -78,4 +78,21 @@ class CollectionPlan extends Model
             PlanFrequency::Monthly => $date->day === min($this->starts_on->day, $date->daysInMonth),
         };
     }
+
+    /**
+     * Installment times the collection days from start to end, before holidays. Null for an open-ended plan.
+     */
+    public function estimatedTotal(): ?Money
+    {
+        if ($this->ends_on === null) {
+            return null;
+        }
+
+        $days = 0;
+        for ($date = $this->starts_on->copy(); $date->lte($this->ends_on); $date->addDay()) {
+            $days += $this->fallsOn($date) ? 1 : 0;
+        }
+
+        return Money::fromPoisha($this->installment_amount->poisha * $days);
+    }
 }

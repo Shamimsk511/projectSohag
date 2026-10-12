@@ -16,12 +16,12 @@
     </p>
 
     <dl class="row bg-body border rounded py-2 mx-0 mb-3">
-        <dt class="col-7 fw-normal text-body-secondary">{{ __('app.field.expected') }}</dt>
-        <dd class="col-5 text-end fw-semibold">{{ $schedule->expected_amount->format() }}</dd>
-        <dt class="col-7 fw-normal text-body-secondary">{{ __('app.field.collected_so_far') }}</dt>
-        <dd class="col-5 text-end fw-semibold">{{ $collected->format() }}</dd>
-        <dt class="col-7 fw-normal text-body-secondary">{{ __($schedule->account->isLoan() ? 'app.accounts.outstanding' : 'app.accounts.balance') }}</dt>
-        <dd class="col-5 text-end fw-semibold mb-0">{{ $accountRemaining->format() }}</dd>
+        <dt class="col-6 fw-normal field-amount-label align-self-center">{{ __('app.field.expected') }}</dt>
+        <dd class="col-6 text-end field-amount mb-1">{{ $schedule->expected_amount->format() }}</dd>
+        <dt class="col-6 fw-normal field-amount-label align-self-center">{{ __('app.field.collected_so_far') }}</dt>
+        <dd class="col-6 text-end field-amount mb-1">{{ $collected->format() }}</dd>
+        <dt class="col-6 fw-normal field-amount-label align-self-center">{{ __($schedule->account->isLoan() ? 'app.accounts.outstanding' : 'app.accounts.balance') }}</dt>
+        <dd class="col-6 text-end field-amount mb-1">{{ $accountRemaining->format() }}</dd>
     </dl>
 
     {{-- .js-queue-collect: field.js sends it through the offline queue (docs/PWA.md); plain POST without JS. --}}

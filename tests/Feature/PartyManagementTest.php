@@ -58,6 +58,32 @@ class PartyManagementTest extends TestCase
         $this->assertNull($first->photo_path);
     }
 
+    public function test_existing_client_number_is_saved_normalised_unique_searchable_and_shown(): void
+    {
+        $this->actingAs($this->manager)->get(route('admin.parties.create'))
+            ->assertOk()->assertSee('name="client_number"', false);
+
+        $this->post(route('admin.parties.store'), $this->validPayload(['client_number' => ' ১০২-A ']))->assertSessionHasNoErrors();
+        $party = Party::where('name', 'Karim Mia')->sole();
+        $this->assertSame('102-A', $party->client_number);
+        $this->assertSame(sprintf('P-%05d', $party->id), $party->party_code); // system code is untouched
+
+        $this->post(route('admin.parties.store'), $this->validPayload(['name' => 'Dup', 'client_number' => '102-A']))
+            ->assertSessionHasErrors('client_number');
+        $this->post(route('admin.parties.store'), $this->validPayload(['name' => 'Bad', 'client_number' => 'no spaces!']))
+            ->assertSessionHasErrors('client_number');
+        $this->post(route('admin.parties.store'), $this->validPayload(['name' => 'Blank', 'client_number' => '']))
+            ->assertSessionHasNoErrors();
+        $this->assertNull(Party::where('name', 'Blank')->sole()->client_number);
+
+        $this->get(route('admin.parties.show', $party))->assertSee('১০২-A');
+        $this->put(route('admin.parties.update', $party), $this->validPayload(['client_number' => '102-A']))
+            ->assertSessionHasNoErrors(); // keeping its own number is not a duplicate
+
+        $this->getJson(route('admin.parties.data', ['search' => ['value' => '102-A'], 'draw' => 1, 'start' => 0, 'length' => 10]))
+            ->assertOk()->assertJsonPath('recordsFiltered', 1);
+    }
+
     public function test_store_redirects_to_the_party_profile(): void
     {
         $response = $this->actingAs($this->manager)->post(route('admin.parties.store'), $this->validPayload());

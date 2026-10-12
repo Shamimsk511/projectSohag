@@ -2,10 +2,14 @@
 
 namespace App\Services;
 
+use App\Enums\CashHandoverMode;
+use App\Enums\PaymentMethod;
 use App\Enums\Permission;
 use App\Enums\Role;
+use App\Enums\TransactionType;
 use App\Models\CashHandover;
 use App\Models\DailyClosing;
+use App\Models\Transaction;
 use App\Models\User;
 use App\Support\Money;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -15,13 +19,15 @@ use Illuminate\Validation\ValidationException;
 
 /**
  * Cash handling from docs/DOMAIN_RULES.md: officers hand collected cash to the office, and closed
- * days lock their dates for non-admins. Neither writes the ledger.
+ * days lock their dates for non-admins. Neither writes the ledger. In automatic handover mode each
+ * officer cash collection is handed over as it is recorded.
  */
 class CashService
 {
     public function __construct(
         private readonly LedgerService $ledger,
         private readonly AuditLogger $audit,
+        private readonly SettingService $settings,
     ) {}
 
     /**
@@ -69,6 +75,31 @@ class CashService
     }
 
     /**
+     * In automatic mode, hand a field officer's cash collection to the office at once. Runs inside
+     * the caller's DB transaction right after the row is recorded; rules were checked there.
+     */
+    public function handOverCollection(Transaction $collection, User $actor): void
+    {
+        $isOfficerCash = $collection->field_officer_id !== null
+            && $collection->payment_method === PaymentMethod::Cash
+            && in_array($collection->type, [TransactionType::LoanCollection, TransactionType::SavingDeposit], true);
+
+        if (! $isOfficerCash || $this->settings->cashHandoverMode() !== CashHandoverMode::Automatic) {
+            return;
+        }
+
+        $handover = CashHandover::create([
+            'field_officer_id' => $collection->field_officer_id,
+            'transaction_id' => $collection->id,
+            'amount' => $collection->amount,
+            'handover_date' => $collection->transaction_date->toDateString(),
+            'confirmed_by' => $actor->id,
+        ]);
+
+        $this->audit->created('cash.handed_over', $handover, $actor);
+    }
+
+    /**
      * Close a business date (today or earlier). There is no reopen.
      */
     public function closeDay(Carbon $date, User $actor): DailyClosing
@@ -91,6 +122,47 @@ class CashService
         } catch (UniqueConstraintViolationException) {
             $this->reject('date', 'closings.already_closed');
         }
+    }
+
+    /**
+     * Automatic closing: close every open date up to the day before yesterday, from the first ledger
+     * date (or just that day when there is no history). Yesterday stays open because offline sync
+     * still accepts collections dated on it today. Returns how many days were closed.
+     */
+    public function closeDueDays(): int
+    {
+        $last = Carbon::parse($this->today()->subDays(2)->toDateString());
+        $first = Transaction::query()->min('transaction_date');
+        $from = $first === null ? $last->copy() : Carbon::parse($first)->startOfDay();
+        if ($from->greaterThan($last)) {
+            return 0;
+        }
+
+        $closed = DailyClosing::query()
+            ->where('date', '>=', $from->toDateString())
+            ->where('date', '<', $last->copy()->addDay()->toDateString())
+            ->pluck('date')
+            ->map(fn (mixed $date): string => Carbon::parse($date)->toDateString())
+            ->flip();
+
+        $count = 0;
+        for ($date = $from->copy(); $date->lessThanOrEqualTo($last); $date->addDay()) {
+            if ($closed->has($date->toDateString())) {
+                continue;
+            }
+
+            try {
+                DB::transaction(function () use ($date): void {
+                    $closing = DailyClosing::create(['date' => $date->toDateString(), 'closed_by' => null]);
+                    $this->audit->created('day.closed', $closing, null);
+                });
+                $count++;
+            } catch (UniqueConstraintViolationException) {
+                // Closed by staff in the meantime.
+            }
+        }
+
+        return $count;
     }
 
     private function today(): Carbon

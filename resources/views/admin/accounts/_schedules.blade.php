@@ -19,6 +19,12 @@
                     {{ collect($plan->weekdays)->sort()->map(fn (int $day) => __('app.schedules.weekday_names')[$day])->implode(', ') }}
                 </p>
             @endif
+            @if ($estimated = $plan->estimatedTotal())
+                <p class="mb-0 mt-1">
+                    {{ __('app.schedules.estimated_total') }}: <span class="fw-semibold">{{ $estimated->format() }}</span>
+                    <span class="small text-body-secondary">({{ __('app.schedules.estimated_total_hint') }})</span>
+                </p>
+            @endif
         @else
             <p class="mb-0 text-body-secondary">{{ __('app.schedules.no_plan') }}</p>
         @endif

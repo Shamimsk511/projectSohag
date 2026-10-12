@@ -23,21 +23,21 @@
                 <div class="text-body-secondary small mb-2" data-field="visits"></div>
                 <div class="row text-center g-2">
                     <div class="col-4">
-                        <div class="small text-body-secondary">{{ __('app.field.expected') }}</div>
-                        <div class="fw-semibold" data-field="expected"></div>
+                        <div class="field-amount-label">{{ __('app.field.expected') }}</div>
+                        <div class="field-amount" data-field="expected"></div>
                     </div>
                     <div class="col-4">
-                        <div class="small text-body-secondary">{{ __('app.field.collected') }}</div>
-                        <div class="fw-semibold text-success" data-field="collected"></div>
+                        <div class="field-amount-label">{{ __('app.field.collected') }}</div>
+                        <div class="field-amount text-success" data-field="collected"></div>
                     </div>
                     <div class="col-4">
-                        <div class="small text-body-secondary">{{ __('app.field.remaining') }}</div>
-                        <div class="fw-semibold text-danger" data-field="remaining"></div>
+                        <div class="field-amount-label">{{ __('app.field.remaining') }}</div>
+                        <div class="field-amount text-danger" data-field="remaining"></div>
                     </div>
                 </div>
                 <div class="d-flex justify-content-between border-top mt-3 pt-2">
-                    <span class="text-body-secondary">{{ __('app.cash.in_hand') }}</span>
-                    <span class="fw-semibold" data-field="cash_in_hand"></span>
+                    <span class="field-amount-label align-self-center">{{ __('app.cash.in_hand') }}</span>
+                    <span class="field-amount" data-field="cash_in_hand"></span>
                 </div>
             </div>
         </div>
@@ -62,12 +62,21 @@
                     </div>
                     <span class="badge" data-field="status_label"></span>
                 </div>
-                <div class="small mt-2">
-                    {{ __('app.field.expected') }}: <span class="fw-semibold" data-field="expected"></span><br>
-                    {{ __('app.field.collected') }}: <span class="fw-semibold" data-field="collected"></span><br>
-                    {{ __('app.field.remaining') }}: <span class="fw-semibold" data-field="remaining"></span>
+                <div class="row text-center g-1 mt-2">
+                    <div class="col-4">
+                        <div class="field-amount-label">{{ __('app.field.expected') }}</div>
+                        <div class="field-amount" data-field="expected"></div>
+                    </div>
+                    <div class="col-4">
+                        <div class="field-amount-label">{{ __('app.field.collected') }}</div>
+                        <div class="field-amount text-success" data-field="collected"></div>
+                    </div>
+                    <div class="col-4">
+                        <div class="field-amount-label">{{ __('app.field.remaining') }}</div>
+                        <div class="field-amount text-danger" data-field="remaining"></div>
+                    </div>
                 </div>
-                <div class="small fw-semibold text-warning-emphasis d-none" data-unsynced></div>
+                <div class="fw-semibold text-warning-emphasis text-center d-none" data-unsynced></div>
                 <div class="d-flex flex-wrap gap-2 mt-2">
                     <button type="button" class="btn btn-primary btn-lg d-none js-offline-collect">
                         <i class="bi bi-cash-coin" aria-hidden="true"></i> {{ __('app.field.collect') }}
@@ -89,12 +98,12 @@
         <h1 class="h4" data-field="party_name"></h1>
         <p class="text-body-secondary mb-3" data-field="details"></p>
         <dl class="row bg-body border rounded py-2 mx-0 mb-3">
-            <dt class="col-7 fw-normal text-body-secondary">{{ __('app.field.expected') }}</dt>
-            <dd class="col-5 text-end fw-semibold" data-field="expected"></dd>
-            <dt class="col-7 fw-normal text-body-secondary">{{ __('app.field.collected_so_far') }}</dt>
-            <dd class="col-5 text-end fw-semibold" data-field="collected"></dd>
-            <dt class="col-7 fw-normal text-body-secondary">{{ __('app.field.remaining') }}</dt>
-            <dd class="col-5 text-end fw-semibold mb-0" data-field="remaining"></dd>
+            <dt class="col-6 fw-normal field-amount-label align-self-center">{{ __('app.field.expected') }}</dt>
+            <dd class="col-6 text-end field-amount mb-1" data-field="expected"></dd>
+            <dt class="col-6 fw-normal field-amount-label align-self-center">{{ __('app.field.collected_so_far') }}</dt>
+            <dd class="col-6 text-end field-amount mb-1" data-field="collected"></dd>
+            <dt class="col-6 fw-normal field-amount-label align-self-center">{{ __('app.field.remaining') }}</dt>
+            <dd class="col-6 text-end field-amount mb-1" data-field="remaining"></dd>
         </dl>
         <form class="js-confirm js-offline-collect-form" data-confirm="{{ __('app.field.confirm') }}" novalidate>
             <div class="mb-3">

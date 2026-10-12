@@ -2,8 +2,8 @@
 
 namespace Tests\Feature;
 
-use App\Enums\AccountType;
 use App\Enums\ActiveStatus;
+use App\Enums\PaymentMethod;
 use App\Enums\Role;
 use App\Enums\TransactionType;
 use App\Enums\UserStatus;
@@ -96,7 +96,7 @@ class AuditLogTest extends TestCase
         $accounts = app(AccountService::class);
         $party = Party::factory()->create();
 
-        $loan = $accounts->open($party, AccountType::Loan, Money::fromTaka('10000'), today(config('app.display_timezone')), $this->manager);
+        $loan = $accounts->openLoan($party, Money::fromTaka('10000'), Money::zero(), PaymentMethod::Cash, today(config('app.display_timezone')), $this->manager);
         $accounts->adjustContractAmount($loan, Money::fromTaka('12000'), 'Renegotiated', $this->manager);
         $accounts->close($loan->refresh(), 'Written off', User::factory()->withRole(Role::Admin)->create());
 

@@ -27,7 +27,12 @@ enum AccountType: string
     public function entryTypes(): array
     {
         return match ($this) {
-            self::Saving => [TransactionType::SavingDeposit, TransactionType::SavingWithdrawal],
+            self::Saving => [
+                TransactionType::SavingDeposit,
+                TransactionType::SavingWithdrawal,
+                TransactionType::SavingOpeningBalance,
+                TransactionType::SavingMaturityCredit,
+            ],
             self::Loan => [TransactionType::LoanDisbursement],
         };
     }

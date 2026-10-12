@@ -26,7 +26,7 @@ class OfficeEntryController extends Controller
             ->whereNull('account_id')
             ->whereIn('type', TransactionType::officeTypes())
             ->datedBetween($from, $to)
-            ->with('reversal')
+            ->with(['reversal', 'account'])
             ->orderByDesc('transaction_date')
             ->orderByDesc('id')
             ->paginate(50)

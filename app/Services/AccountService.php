@@ -3,12 +3,15 @@
 namespace App\Services;
 
 use App\Enums\AccountType;
+use App\Enums\PaymentMethod;
 use App\Enums\Permission;
+use App\Enums\TransactionType;
 use App\Models\Account;
 use App\Models\AccountAdjustment;
 use App\Models\Party;
 use App\Models\User;
 use App\Support\Money;
+use App\Support\TransactionData;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -23,35 +26,63 @@ class AccountService
         private readonly SequenceService $sequences,
         private readonly LedgerService $ledger,
         private readonly AuditLogger $audit,
+        private readonly TransactionService $transactions,
     ) {}
 
     /**
-     * Open an account with the next SV-/LN- number. Loans need a contract amount; savings have none.
+     * Open a saving account with the next SV- number; `$agreedAmount` is the optional amount agreed
+     * for the end of the term.
      */
-    public function open(Party $party, AccountType $type, ?Money $contractAmount, Carbon $openedAt, User $actor): Account
+    public function openSaving(Party $party, ?Money $agreedAmount, Carbon $openedAt, User $actor): Account
     {
-        if (! $party->isActive()) {
-            throw ValidationException::withMessages(['account_type' => __('app.accounts.party_inactive')]);
-        }
+        return DB::transaction(fn (): Account => $this->create($party, AccountType::Saving, $agreedAmount, $openedAt, $actor));
+    }
 
-        return DB::transaction(function () use ($party, $type, $contractAmount, $openedAt, $actor): Account {
-            $account = Account::create([
-                'party_id' => $party->id,
-                'account_number' => sprintf('%s-%06d', $type->prefix(), $this->sequences->next('account.'.$type->prefix())),
-                'account_type' => $type,
-                'contract_amount' => $type === AccountType::Loan ? $contractAmount : null,
-                'opened_at' => $openedAt->toDateString(),
-                'created_by' => $actor->id,
-            ]);
+    /**
+     * Open a loan with the next LN- number and hand over the principal in the same step. The contract
+     * amount is principal plus the agreed extra, both typed by the office; nothing is derived. A
+     * rejected disbursement (closed day, ...) rolls the account back too.
+     */
+    public function openLoan(Party $party, Money $principal, Money $agreedExtra, PaymentMethod $paymentMethod, Carbon $openedAt, User $actor): Account
+    {
+        return DB::transaction(function () use ($party, $principal, $agreedExtra, $paymentMethod, $openedAt, $actor): Account {
+            $account = $this->create($party, AccountType::Loan, $principal->plus($agreedExtra), $openedAt, $actor);
 
-            $this->audit->created('account.opened', $account, $actor);
+            $this->transactions->record(new TransactionData(
+                type: TransactionType::LoanDisbursement,
+                amount: $principal,
+                date: $openedAt,
+                account: $account,
+                paymentMethod: $paymentMethod,
+            ), $actor);
 
             return $account;
         });
     }
 
+    private function create(Party $party, AccountType $type, ?Money $contractAmount, Carbon $openedAt, User $actor): Account
+    {
+        if (! $party->isActive()) {
+            throw ValidationException::withMessages(['account_type' => __('app.accounts.party_inactive')]);
+        }
+
+        $account = Account::create([
+            'party_id' => $party->id,
+            'account_number' => sprintf('%s-%06d', $type->prefix(), $this->sequences->next('account.'.$type->prefix())),
+            'account_type' => $type,
+            'contract_amount' => $contractAmount,
+            'opened_at' => $openedAt->toDateString(),
+            'created_by' => $actor->id,
+        ]);
+
+        $this->audit->created('account.opened', $account, $actor);
+
+        return $account;
+    }
+
     /**
-     * Change a loan's contract amount, keeping the old value, reason and actor in account_adjustments.
+     * Change a loan's contract amount or set/change a saving's agreed amount, keeping the old value,
+     * reason and actor in account_adjustments.
      */
     public function adjustContractAmount(Account $account, Money $newAmount, string $reason, User $actor): AccountAdjustment
     {
@@ -59,11 +90,11 @@ class AccountService
             $account = $this->lock($account);
             $oldAmount = $account->contract_amount;
 
-            if (! $account->isLoan() || ! $account->isActive() || $oldAmount === null) {
+            if (! $account->isActive() || ($account->isLoan() && $oldAmount === null)) {
                 throw ValidationException::withMessages(['contract_amount' => __('app.accounts.not_adjustable')]);
             }
 
-            if ($oldAmount->equals($newAmount)) {
+            if ($oldAmount?->equals($newAmount)) {
                 throw ValidationException::withMessages(['contract_amount' => __('app.accounts.amount_unchanged')]);
             }
 

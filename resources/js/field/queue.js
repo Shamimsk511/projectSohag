@@ -21,6 +21,9 @@ export const localizeDigits = (text) => (document.documentElement.lang === 'bn'
     ? text.replace(/[0-9]/g, (digit) => BENGALI_DIGITS[digit])
     : text);
 
+/** Bengali digits -> ASCII (search and amount input accept either). */
+export const toAsciiDigits = (text) => String(text).replace(/[০-৯]/g, (digit) => String(BENGALI_DIGITS.indexOf(digit)));
+
 /** Fills every [data-field] inside root whose name is in values (text only, never HTML). */
 export function fill(root, values) {
     root.querySelectorAll('[data-field]').forEach((element) => {
@@ -44,8 +47,7 @@ export function formatPoisha(poisha) {
 
 /** Taka input (Bengali digits and commas allowed) -> { taka: "1234.5", poisha: 123450 }, or null if not > 0. */
 export function parseTaka(input) {
-    const taka = String(input)
-        .replace(/[০-৯]/g, (digit) => String(BENGALI_DIGITS.indexOf(digit)))
+    const taka = toAsciiDigits(input)
         .replace(/[,\s]/g, '');
     const match = taka.match(/^(\d+)(?:\.(\d{1,2}))?$/);
     if (!match) {

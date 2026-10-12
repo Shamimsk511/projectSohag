@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreDailyClosingRequest;
 use App\Models\DailyClosing;
 use App\Services\CashService;
+use App\Services\SettingService;
 use App\Support\Numerals;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Gate;
@@ -13,12 +14,13 @@ use Illuminate\View\View;
 
 class DailyClosingController extends Controller
 {
-    public function index(): View
+    public function index(SettingService $settings): View
     {
         Gate::authorize('viewAny', DailyClosing::class);
 
         return view('admin.daily-closings.index', [
             'closings' => DailyClosing::query()->with('closedBy:id,name')->orderByDesc('date')->paginate(50),
+            'autoClose' => $settings->autoCloseDays(),
             'today' => today(config('app.display_timezone'))->toDateString(),
         ]);
     }

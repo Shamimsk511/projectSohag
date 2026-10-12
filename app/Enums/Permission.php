@@ -23,6 +23,7 @@ enum Permission: string
     case ReceiveCash = 'cash.receive';
     case CloseDays = 'days.close';
     case PostOnClosedDays = 'closed_days.post';
+    case ManageSettings = 'settings.manage';
 
     /**
      * Non-admin roles that hold this permission.
@@ -32,7 +33,7 @@ enum Permission: string
     public function roles(): array
     {
         return match ($this) {
-            self::ManageUsers, self::OverrideLimits, self::PostOnClosedDays => [],
+            self::ManageUsers, self::OverrideLimits, self::PostOnClosedDays, self::ManageSettings => [],
             self::ViewAllParties => [Role::Manager, Role::Accountant],
             self::ManageParties, self::AssignParties, self::ManageAccounts, self::ManageSchedules,
             self::ReverseTransactions => [Role::Manager],

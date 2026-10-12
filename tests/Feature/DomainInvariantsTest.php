@@ -108,7 +108,7 @@ class DomainInvariantsTest extends TestCase
         $service = app(TransactionService::class);
         $ledger = app(LedgerService::class);
 
-        $saving = Account::factory()->create(['opened_at' => '2026-10-01']);
+        $saving = Account::factory()->create(['opened_at' => '2026-10-01', 'contract_amount' => Money::fromTaka('2000')]);
         $loan = Account::factory()->loan('1000')->create(['opened_at' => '2026-10-01']);
         $schedule = CollectionSchedule::factory()->create([
             'account_id' => $loan->id, 'field_officer_id' => $officer->id, 'expected_amount' => Money::fromTaka('300'),
@@ -119,11 +119,13 @@ class DomainInvariantsTest extends TestCase
             $actor ?? $admin,
         );
 
+        $record(TransactionType::SavingOpeningBalance, '300', '2026-10-01', $saving);
         $deposit = $record(TransactionType::SavingDeposit, '500', '2026-10-02', $saving, ['fieldOfficer' => $officer]);
         $record(TransactionType::SavingDeposit, '250.50', '2026-10-05', $saving, ['paymentMethod' => PaymentMethod::MobileBanking]);
         $record(TransactionType::SavingWithdrawal, '100', '2026-10-06', $saving);
         $service->reverse($deposit, 'Entered on the wrong member', $admin);
         $record(TransactionType::SavingDeposit, '500', '2026-10-12', $saving, ['fieldOfficer' => $officer]);
+        $record(TransactionType::SavingMaturityCredit, '949.50', '2026-10-12', $saving);
 
         $record(TransactionType::LoanDisbursement, '800', '2026-10-01', $loan);
         $collection = $record(TransactionType::LoanCollection, '200', '2026-10-12', $loan, ['schedule' => $schedule, 'fieldOfficer' => $officer, 'clientUuid' => 'a7f1c1b2-0000-4000-8000-000000000001'], $officer);
@@ -144,13 +146,14 @@ class DomainInvariantsTest extends TestCase
         $effective = fn () => DB::table('transactions')->where('type', '!=', TransactionType::Reversal->value)->whereNotIn('id', $reversedIds);
         $sum = fn ($query): int => (int) $query->sum('amount');
 
-        $savingBalance = $sum($effective()->where('account_id', $saving->id)->where('type', TransactionType::SavingDeposit->value))
+        $savingIn = [TransactionType::SavingDeposit->value, TransactionType::SavingOpeningBalance->value, TransactionType::SavingMaturityCredit->value];
+        $savingBalance = $sum($effective()->where('account_id', $saving->id)->whereIn('type', $savingIn))
             - $sum($effective()->where('account_id', $saving->id)->where('type', TransactionType::SavingWithdrawal->value));
         $loanReceived = $sum($effective()->where('account_id', $loan->id)->where('type', TransactionType::LoanCollection->value));
         $cashCollected = $sum($effective()->where('field_officer_id', $officer->id)->where('payment_method', PaymentMethod::Cash->value)
             ->whereIn('type', [TransactionType::LoanCollection->value, TransactionType::SavingDeposit->value]));
 
-        $this->assertSame(65050, $savingBalance); // 250.50 - 100 + 500, the reversed 500 left out
+        $this->assertSame(190000, $savingBalance); // 300 + 250.50 - 100 + 500 + 949.50, the reversed 500 left out
         $this->assertSame($savingBalance, $ledger->savingBalance($saving)->poisha);
         $this->assertSame($savingBalance, $ledger->statement($saving)->closing->poisha);
         $this->assertSame(105000, $loanReceived); // 150 + 900; the duplicate uuid and the reversed 200 add nothing
@@ -169,7 +172,7 @@ class DomainInvariantsTest extends TestCase
 
         // Row-level rules: positive amounts, one reversal per original, one audit row per ledger row.
         $rows = Transaction::query()->get();
-        $this->assertCount(14, $rows);
+        $this->assertCount(16, $rows);
         $this->assertTrue($rows->every(fn (Transaction $row): bool => $row->amount->isPositive()));
         $this->assertSame(count($reversedIds), count(array_unique($reversedIds)));
         foreach ($rows as $row) {

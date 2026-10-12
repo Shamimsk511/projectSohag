@@ -15,6 +15,14 @@ enum ScheduleStatus: string
      */
     public function isCollectable(): bool
     {
-        return in_array($this, [self::Pending, self::PartiallyPaid, self::Missed], true);
+        return in_array($this, self::collectable(), true);
+    }
+
+    /**
+     * @return list<self>
+     */
+    public static function collectable(): array
+    {
+        return [self::Pending, self::PartiallyPaid, self::Missed];
     }
 }

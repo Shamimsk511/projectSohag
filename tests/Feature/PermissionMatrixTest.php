@@ -39,6 +39,13 @@ class PermissionMatrixTest extends TestCase
      */
     private const MATRIX = [
         'admin.dashboard' => [self::MANAGER, self::ACCOUNTANT],
+        'admin.search' => [self::MANAGER, self::ACCOUNTANT],
+        'admin.reports.daily-collection' => [self::MANAGER, self::ACCOUNTANT],
+        'admin.reports.officer-performance' => [self::MANAGER, self::ACCOUNTANT],
+        'admin.reports.outstanding' => [self::MANAGER, self::ACCOUNTANT],
+        'admin.reports.missed-partial' => [self::MANAGER, self::ACCOUNTANT],
+        'admin.reports.cash-reconciliation' => [self::MANAGER, self::ACCOUNTANT],
+        'admin.reports.monthly' => [self::MANAGER, self::ACCOUNTANT],
 
         'admin.users.index' => [],
         'admin.users.create' => [],
@@ -56,6 +63,7 @@ class PermissionMatrixTest extends TestCase
         'admin.parties.data' => [self::MANAGER, self::ACCOUNTANT],
         'admin.parties.show' => [self::MANAGER, self::ACCOUNTANT],
         'admin.parties.photo' => [self::MANAGER, self::ACCOUNTANT],
+        'admin.parties.statement' => [self::MANAGER, self::ACCOUNTANT],
         'admin.parties.create' => [self::MANAGER],
         'admin.parties.store' => [self::MANAGER],
         'admin.parties.edit' => [self::MANAGER],
@@ -94,6 +102,8 @@ class PermissionMatrixTest extends TestCase
         'admin.cash-handovers.store' => [self::MANAGER, self::ACCOUNTANT],
         'admin.daily-closings.index' => [self::MANAGER, self::ACCOUNTANT],
         'admin.daily-closings.store' => [self::MANAGER, self::ACCOUNTANT],
+        'admin.settings.edit' => [],
+        'admin.settings.update' => [],
 
         'field.home' => [self::OFFICER],
         'field.sync' => [self::OFFICER],
@@ -102,6 +112,9 @@ class PermissionMatrixTest extends TestCase
         'field.collections.create' => [],
         'field.collections.store' => [],
         'field.receipts.show' => [],
+        'field.parties.collect' => [],
+        'field.parties.collections.store' => [],
+        'field.parties.photo' => [],
     ];
 
     /**

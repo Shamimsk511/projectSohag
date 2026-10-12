@@ -26,6 +26,7 @@ class TransactionService
         private readonly LedgerService $ledger,
         private readonly SequenceService $sequences,
         private readonly AuditLogger $audit,
+        private readonly CashService $cash,
     ) {}
 
     /**
@@ -80,7 +81,7 @@ class TransactionService
                 $this->reject('reason', 'day_closed');
             }
 
-            if ($account && $original->type === TransactionType::SavingDeposit
+            if ($account && in_array($original->type, TransactionType::savingInTypes(), true)
                 && $original->amount->greaterThan($this->ledger->savingBalance($account))) {
                 $this->reject('reason', 'reversal_exceeds_balance');
             }
@@ -158,6 +159,20 @@ class TransactionService
             $this->reject('amount', 'exceeds_balance');
         }
 
+        if ($account && $type === TransactionType::SavingOpeningBalance && $this->ledger->hasEntries($account)) {
+            $this->reject('type', 'opening_not_first');
+        }
+
+        if ($account && $type === TransactionType::SavingMaturityCredit) {
+            if ($account->contract_amount === null) {
+                $this->reject('type', 'no_agreed_amount');
+            }
+
+            if ($this->ledger->savingCredited($account)->plus($data->amount)->greaterThan($account->contract_amount)) {
+                $this->reject('amount', 'exceeds_agreed');
+            }
+        }
+
         $overridden = $account && $type === TransactionType::LoanCollection
             && $data->amount->greaterThan($this->ledger->loanOutstanding($account));
 
@@ -178,7 +193,7 @@ class TransactionService
             'schedule_id' => $schedule?->id,
             'type' => $type,
             'amount' => $data->amount,
-            'payment_method' => $data->paymentMethod,
+            'payment_method' => $type->movesMoney() ? $data->paymentMethod : null,
             'reference' => $data->reference,
             'receipt_no' => $type->issuesReceipt() ? $this->receiptNumber($data->date->format('Ym')) : null,
             'description' => $data->description,
@@ -190,6 +205,7 @@ class TransactionService
         ]);
 
         $this->audit->created('transaction.recorded', $transaction, $actor);
+        $this->cash->handOverCollection($transaction, $actor);
 
         if ($schedule) {
             $this->settle($schedule, $actor);

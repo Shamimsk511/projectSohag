@@ -29,6 +29,8 @@ class SaveCollectionPlanRequest extends FormRequest
             'weekdays.*' => ['integer', 'between:0,6'],
             'starts_on' => ['required', 'date_format:Y-m-d', 'after_or_equal:'.today(config('app.display_timezone'))->toDateString()],
             'ends_on' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:starts_on'],
+            'duration' => ['nullable', 'integer', 'between:1,600'],
+            'duration_unit' => ['required_with:duration', 'nullable', Rule::in(['months', 'years'])],
         ];
     }
 
@@ -43,6 +45,8 @@ class SaveCollectionPlanRequest extends FormRequest
             'weekdays' => __('app.schedules.weekdays'),
             'starts_on' => __('app.schedules.starts_on'),
             'ends_on' => __('app.schedules.ends_on'),
+            'duration' => __('app.schedules.duration'),
+            'duration_unit' => __('app.schedules.duration_unit'),
         ];
     }
 
@@ -73,8 +77,21 @@ class SaveCollectionPlanRequest extends FormRequest
         return Carbon::createFromFormat('!Y-m-d', $this->string('starts_on')->value()) ?: today();
     }
 
+    /**
+     * The entered end date, else the day before start + term (3 years from 12 Oct ends 11 Oct).
+     */
     public function endsOn(): ?Carbon
     {
-        return $this->filled('ends_on') ? (Carbon::createFromFormat('!Y-m-d', $this->string('ends_on')->value()) ?: null) : null;
+        if ($this->filled('ends_on')) {
+            return Carbon::createFromFormat('!Y-m-d', $this->string('ends_on')->value()) ?: null;
+        }
+
+        if (! $this->filled('duration')) {
+            return null;
+        }
+
+        $months = $this->integer('duration') * ($this->validated('duration_unit') === 'years' ? 12 : 1);
+
+        return $this->startsOn()->addMonthsNoOverflow($months)->subDay();
     }
 }

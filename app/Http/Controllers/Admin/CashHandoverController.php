@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Enums\CashHandoverMode;
 use App\Enums\Role;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreCashHandoverRequest;
@@ -9,6 +10,7 @@ use App\Models\CashHandover;
 use App\Models\User;
 use App\Services\CashService;
 use App\Services\LedgerService;
+use App\Services\SettingService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\View\View;
@@ -18,7 +20,7 @@ use Illuminate\View\View;
  */
 class CashHandoverController extends Controller
 {
-    public function index(LedgerService $ledger): View
+    public function index(LedgerService $ledger, SettingService $settings): View
     {
         Gate::authorize('viewAny', CashHandover::class);
 
@@ -32,6 +34,7 @@ class CashHandoverController extends Controller
                 ->orderByDesc('handover_date')
                 ->orderByDesc('id')
                 ->paginate(50),
+            'automatic' => $settings->cashHandoverMode() === CashHandoverMode::Automatic,
             'today' => today(config('app.display_timezone'))->toDateString(),
         ]);
     }

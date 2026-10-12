@@ -26,9 +26,33 @@
                 </div>
             </fieldset>
 
-            <div class="mb-3" data-loan-only>
-                <x-form.input name="contract_amount" :label="__('app.accounts.contract_amount').' (৳)'" inputmode="decimal"
-                              autocomplete="off" :hint="__('app.accounts.contract_amount_hint')" />
+            <div data-saving-fields>
+                <x-form.input name="contract_amount" :label="__('app.accounts.agreed_amount').' (৳)'" inputmode="decimal"
+                              autocomplete="off" :hint="__('app.accounts.agreed_amount_hint')" />
+            </div>
+
+            <div data-loan-fields class="row g-3">
+                <div class="col-md-6">
+                    <x-form.input name="principal_amount" :label="__('app.accounts.principal_amount').' (৳)'" inputmode="decimal"
+                                  autocomplete="off" :hint="__('app.accounts.principal_amount_hint')" />
+                </div>
+                <div class="col-md-6">
+                    <x-form.input name="extra_amount" :label="__('app.accounts.agreed_extra').' (৳)'" inputmode="decimal"
+                                  autocomplete="off" :hint="__('app.accounts.agreed_extra_hint')" />
+                </div>
+                <div class="col-12">
+                    <div class="small text-body-secondary">{{ __('app.accounts.contract_amount') }}: <strong data-contract-total>৳ 0</strong></div>
+                </div>
+                <fieldset class="col-12">
+                    <legend class="form-label fs-6">{{ __('app.transactions.payment_method') }}</legend>
+                    <div class="d-flex flex-wrap gap-2">
+                        @foreach (\App\Enums\PaymentMethod::cases() as $method)
+                            <input type="radio" class="btn-check" name="payment_method" id="method-{{ $method->value }}" value="{{ $method->value }}"
+                                   autocomplete="off" @checked(old('payment_method', 'cash') === $method->value)>
+                            <label class="btn btn-outline-secondary" for="method-{{ $method->value }}">{{ __('app.transactions.payment_methods.'.$method->value) }}</label>
+                        @endforeach
+                    </div>
+                </fieldset>
             </div>
 
             <div class="mb-3">
