@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Enums\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Vite;
@@ -36,7 +37,7 @@ class ViteEntriesTest extends TestCase
 
     public function test_admin_layout_loads_only_the_admin_entry(): void
     {
-        $this->actingAs(User::factory()->create())
+        $this->actingAs(User::factory()->withRole(Role::Admin)->create())
             ->get('/admin')
             ->assertOk()
             ->assertSee('http://vite.test/resources/js/admin.js', false)
@@ -45,7 +46,7 @@ class ViteEntriesTest extends TestCase
 
     public function test_field_layout_loads_only_the_field_entry(): void
     {
-        $this->actingAs(User::factory()->create())
+        $this->actingAs(User::factory()->withRole(Role::FieldOfficer)->create())
             ->get('/field')
             ->assertOk()
             ->assertSee('http://vite.test/resources/js/field.js', false)

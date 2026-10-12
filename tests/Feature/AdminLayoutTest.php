@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Enums\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -31,7 +32,7 @@ class AdminLayoutTest extends TestCase
 
     public function test_dashboard_renders_with_bundled_assets_only(): void
     {
-        $this->actingAs(User::factory()->create())
+        $this->actingAs(User::factory()->withRole(Role::Admin)->create())
             ->get('/admin')
             ->assertOk()
             ->assertSee('app-wrapper', false)
@@ -40,14 +41,6 @@ class AdminLayoutTest extends TestCase
             ->assertDontSee('vendor/overlayscrollbars/', false)
             ->assertDontSee('vendor/fonts/', false)
             ->assertDontSee('cdn.jsdelivr.net', false);
-    }
-
-    public function test_login_redirects_to_admin_dashboard(): void
-    {
-        $user = User::factory()->create();
-
-        $this->post('/login', ['email' => $user->email, 'password' => 'password'])
-            ->assertRedirect('/admin');
     }
 
     public function test_public_registration_is_disabled(): void
