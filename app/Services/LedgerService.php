@@ -5,9 +5,12 @@ namespace App\Services;
 use App\Enums\TransactionType;
 use App\Models\Account;
 use App\Models\Transaction;
+use App\Support\AccountStatement;
 use App\Support\Money;
+use App\Support\StatementLine;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
+use Illuminate\Support\Carbon;
 
 /**
  * Balances computed from the ledger; nothing here is stored. A reversed row and its reversal both
@@ -40,6 +43,66 @@ class LedgerService
     public function remainingBalance(Account $account): Money
     {
         return $account->isLoan() ? $this->loanOutstanding($account) : $this->savingBalance($account);
+    }
+
+    /**
+     * Statement for an optional date period. Rows before `$from` fold into the opening figure, so the
+     * closing figure over the whole history equals savingBalance() or loanReceived().
+     */
+    public function statement(Account $account, ?Carbon $from = null, ?Carbon $to = null): AccountStatement
+    {
+        $columns = $account->isLoan()
+            ? [TransactionType::LoanCollection->value => 'in', TransactionType::LoanDisbursement->value => 'out']
+            : [TransactionType::SavingDeposit->value => 'in', TransactionType::SavingWithdrawal->value => 'out'];
+
+        $rows = Transaction::query()
+            ->where('account_id', $account->id)
+            ->whereIn('type', [...array_keys($columns), TransactionType::Reversal->value])
+            ->orderBy('transaction_date')
+            ->orderBy('id')
+            ->get();
+        $byId = $rows->keyBy('id');
+        $reversedIds = $rows->pluck('reverses_transaction_id')->filter()->flip();
+
+        $running = Money::zero();
+        $opening = Money::zero();
+        $lines = [];
+
+        foreach ($rows as $row) {
+            $original = $row->type === TransactionType::Reversal ? $byId->get($row->reverses_transaction_id) : $row;
+            $column = $original ? ($columns[$original->type->value] ?? null) : null;
+
+            if ($column === null || ($to && $row->transaction_date->gt($to))) {
+                continue;
+            }
+
+            if ($row !== $original) {
+                $row->setRelation('reversedTransaction', $original);
+            }
+
+            $amount = $row === $original ? $row->amount : Money::zero()->minus($row->amount);
+            if ($column === 'in') {
+                $running = $running->plus($amount);
+            } elseif (! $account->isLoan()) {
+                $running = $running->minus($amount);
+            }
+
+            if ($from && $row->transaction_date->lt($from)) {
+                $opening = $running;
+
+                continue;
+            }
+
+            $lines[] = new StatementLine(
+                $row,
+                $column === 'in' ? $amount : null,
+                $column === 'out' ? $amount : null,
+                $running,
+                $reversedIds->has($row->id),
+            );
+        }
+
+        return new AccountStatement($from, $to, $opening, $lines, $running);
     }
 
     private function sum(Account $account, TransactionType $type): Money

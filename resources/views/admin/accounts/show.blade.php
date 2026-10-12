@@ -22,6 +22,9 @@
                     <span @class(['badge', 'text-bg-success' => $account->isActive(), 'text-bg-secondary' => ! $account->isActive()])>
                         {{ $account->isActive() ? __('app.accounts.active') : __('app.accounts.closed') }}
                     </span>
+                    <a href="{{ route('admin.accounts.statement', $account) }}" class="btn btn-sm btn-outline-primary ms-auto">
+                        <i class="bi bi-journal-text" aria-hidden="true"></i> {{ __('app.accounts.statement') }}
+                    </a>
                 </div>
                 <div class="card-body">
                     <div class="row g-3 mb-3 text-center">

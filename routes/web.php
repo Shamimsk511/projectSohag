@@ -29,6 +29,7 @@ Route::middleware(['auth', RoleMiddleware::using(Role::names(Role::office()))])
         Route::get('parties/{party}/accounts/create', [AccountController::class, 'create'])->name('parties.accounts.create');
         Route::post('parties/{party}/accounts', [AccountController::class, 'store'])->name('parties.accounts.store');
         Route::get('accounts/{account}', [AccountController::class, 'show'])->name('accounts.show');
+        Route::get('accounts/{account}/statement', [AccountController::class, 'statement'])->name('accounts.statement');
         Route::post('accounts/{account}/adjustments', [AccountController::class, 'adjust'])->name('accounts.adjust');
         Route::post('accounts/{account}/close', [AccountController::class, 'close'])->name('accounts.close');
         Route::post('uploads/party-photo', [PartyPhotoUploadController::class, 'store'])->name('uploads.party-photo.store');

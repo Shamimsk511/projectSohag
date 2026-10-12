@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Enums\AccountType;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\AccountStatementRequest;
 use App\Http\Requests\Admin\AdjustAccountRequest;
 use App\Http\Requests\Admin\CloseAccountRequest;
 use App\Http\Requests\Admin\StoreAccountRequest;
@@ -51,6 +52,16 @@ class AccountController extends Controller
             'account' => $account,
             'received' => $account->isLoan() ? $ledger->loanReceived($account) : null,
             'remaining' => $ledger->remainingBalance($account),
+        ]);
+    }
+
+    public function statement(AccountStatementRequest $request, Account $account, LedgerService $ledger): View
+    {
+        $account->load('party');
+
+        return view('admin.accounts.statement', [
+            'account' => $account,
+            'statement' => $ledger->statement($account, $request->periodFrom(), $request->periodTo()),
         ]);
     }
 

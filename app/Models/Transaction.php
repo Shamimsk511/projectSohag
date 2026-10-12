@@ -20,6 +20,9 @@ use LogicException;
  * @property TransactionType $type
  * @property Money $amount
  * @property Carbon $transaction_date
+ * @property string|null $reference
+ * @property string|null $receipt_no
+ * @property string|null $description
  * @property int|null $reverses_transaction_id
  * @property int $created_by
  */
@@ -59,5 +62,15 @@ class Transaction extends Model
     public function account(): BelongsTo
     {
         return $this->belongsTo(Account::class);
+    }
+
+    /**
+     * The row this reversal cancels.
+     *
+     * @return BelongsTo<Transaction, $this>
+     */
+    public function reversedTransaction(): BelongsTo
+    {
+        return $this->belongsTo(Transaction::class, 'reverses_transaction_id');
     }
 }
