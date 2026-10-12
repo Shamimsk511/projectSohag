@@ -24,3 +24,18 @@ document.addEventListener('click', (event) => {
         input.focus();
     }
 });
+
+// Receipt buttons: print, and share through the phone's share sheet where supported.
+document.addEventListener('click', (event) => {
+    const target = event.target instanceof Element ? event.target : null;
+    if (target?.closest('.js-print')) {
+        window.print();
+    }
+    const share = target?.closest('.js-share');
+    if (share) {
+        navigator.share({ title: share.dataset.shareTitle, text: share.dataset.shareText }).catch(() => {});
+    }
+});
+if (navigator.share) {
+    document.querySelectorAll('.js-share').forEach((button) => button.classList.remove('d-none'));
+}

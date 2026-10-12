@@ -42,4 +42,14 @@ class TransactionPolicy
         return $user->can(Permission::ReverseTransactions->value)
             && ($transaction->account === null || $user->can('view', $transaction->account));
     }
+
+    /**
+     * Open the printable receipt: the officer who collected it, or staff who can see its account.
+     */
+    public function viewReceipt(User $user, Transaction $transaction): bool
+    {
+        return $transaction->receipt_no !== null
+            && ($transaction->field_officer_id === $user->id
+                || ($transaction->account !== null && $user->can('view', $transaction->account)));
+    }
 }

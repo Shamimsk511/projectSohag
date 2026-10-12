@@ -189,6 +189,28 @@ class CollectionService
     }
 
     /**
+     * Flag pending rows due on or before $date as missed (earlier days too, so a skipped night is
+     * caught up). Partially paid rows keep their status. Returns the count.
+     */
+    public function markMissed(Carbon $date): int
+    {
+        return DB::transaction(function () use ($date): int {
+            $rows = CollectionSchedule::query()
+                ->where('due_date', '<', Carbon::parse($date->toDateString())->addDay()->toDateString())
+                ->where('status', ScheduleStatus::Pending)
+                ->lockForUpdate()
+                ->get();
+
+            foreach ($rows as $schedule) {
+                $schedule->update(['status' => ScheduleStatus::Missed]);
+                $this->audit->updated('schedule.missed', $schedule, null);
+            }
+
+            return $rows->count();
+        });
+    }
+
+    /**
      * Add a day without collections. Pending rows already generated for it are cancelled; weekly and
      * monthly plans then fall on the next working day.
      */

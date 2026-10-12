@@ -10,6 +10,7 @@ use App\Models\AuditLog;
 use App\Models\CollectionSchedule;
 use App\Models\Transaction;
 use App\Models\User;
+use App\Services\CollectionService;
 use App\Services\LedgerService;
 use App\Services\TransactionService;
 use App\Support\Money;
@@ -135,13 +136,58 @@ class CollectionRecordingTest extends TestCase
         $this->assertSame(0, $collected[$empty->id]->poisha);
     }
 
-    private function schedule(Account $account, string $expectedTaka, ScheduleStatus $status = ScheduleStatus::Pending): CollectionSchedule
+    public function test_mark_missed_flags_pending_rows_due_on_or_before_the_date(): void
     {
+        $yesterday = $this->schedule(Account::factory()->create(), '100', dueDate: '2026-10-11');
+        $older = $this->schedule(Account::factory()->create(), '100', dueDate: '2026-10-09');
+        $partial = $this->schedule(Account::factory()->create(), '100', ScheduleStatus::PartiallyPaid, '2026-10-11');
+        $today = $this->schedule(Account::factory()->create(), '100');
+
+        $marked = app(CollectionService::class)->markMissed(Carbon::parse('2026-10-11'));
+
+        $this->assertSame(2, $marked);
+        $this->assertSame(ScheduleStatus::Missed, $yesterday->fresh()?->status);
+        $this->assertSame(ScheduleStatus::Missed, $older->fresh()?->status);
+        $this->assertSame(ScheduleStatus::PartiallyPaid, $partial->fresh()?->status);
+        $this->assertSame(ScheduleStatus::Pending, $today->fresh()?->status);
+        $this->assertSame(2, AuditLog::query()->where('action', 'schedule.missed')->whereNull('user_id')->count());
+    }
+
+    public function test_mark_missed_command_defaults_to_yesterday(): void
+    {
+        $yesterday = $this->schedule(Account::factory()->create(), '100', dueDate: '2026-10-11');
+        $today = $this->schedule(Account::factory()->create(), '100');
+
+        $this->artisan('schedules:mark-missed')->assertSuccessful();
+        $this->artisan('schedules:mark-missed', ['--date' => '12-10-2026'])->assertFailed();
+
+        $this->assertSame(ScheduleStatus::Missed, $yesterday->fresh()?->status);
+        $this->assertSame(ScheduleStatus::Pending, $today->fresh()?->status);
+    }
+
+    public function test_collecting_on_a_missed_row_settles_it_and_reversal_returns_it_to_missed(): void
+    {
+        $schedule = $this->schedule(Account::factory()->loan()->create(['opened_at' => '2026-10-01']), '500', ScheduleStatus::Missed, '2026-10-10');
+
+        $collection = $this->collect($schedule, TransactionType::LoanCollection, '500');
+        $this->assertSame(ScheduleStatus::Paid, $schedule->fresh()?->status);
+
+        $this->service->reverse($collection, 'Wrong member', $this->manager);
+        $this->assertSame(ScheduleStatus::Missed, $schedule->fresh()?->status);
+    }
+
+    private function schedule(
+        Account $account,
+        string $expectedTaka,
+        ScheduleStatus $status = ScheduleStatus::Pending,
+        string $dueDate = '2026-10-12',
+    ): CollectionSchedule {
         return CollectionSchedule::factory()->create([
             'account_id' => $account->id,
             'field_officer_id' => $this->officer->id,
             'expected_amount' => Money::fromTaka($expectedTaka),
             'status' => $status,
+            'due_date' => $dueDate,
         ]);
     }
 

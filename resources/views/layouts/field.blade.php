@@ -8,7 +8,7 @@
     @vite('resources/js/field.js')
 </head>
 <body class="bg-body-tertiary">
-    <header class="navbar bg-body border-bottom px-3">
+    <header class="navbar bg-body border-bottom px-3 d-print-none">
         <span class="navbar-brand mb-0 h1">{{ config('app.name') }}</span>
         <form method="POST" action="{{ route('logout') }}">
             @csrf

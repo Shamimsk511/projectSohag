@@ -14,6 +14,7 @@ use App\Http\Controllers\Admin\TransactionController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Field\CollectionController;
 use App\Http\Controllers\HomeController;
+use App\Http\Controllers\ReceiptController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use Spatie\Permission\Middleware\RoleMiddleware;
@@ -47,6 +48,7 @@ Route::middleware(['auth', RoleMiddleware::using(Role::names(Role::office()))])
         Route::post('accounts/{account}/transactions', [TransactionController::class, 'store'])->name('accounts.transactions.store');
         Route::get('office-entries', [OfficeEntryController::class, 'index'])->name('office-entries.index');
         Route::post('office-entries', [OfficeEntryController::class, 'store'])->name('office-entries.store');
+        Route::get('transactions/{transaction}/receipt', [ReceiptController::class, 'show'])->name('transactions.receipt');
         Route::post('transactions/{transaction}/reverse', [TransactionController::class, 'reverse'])->name('transactions.reverse');
         Route::post('uploads/party-photo', [PartyPhotoUploadController::class, 'store'])->name('uploads.party-photo.store');
         Route::delete('uploads/party-photo', [PartyPhotoUploadController::class, 'destroy'])->name('uploads.party-photo.destroy');
@@ -57,4 +59,5 @@ Route::middleware(['auth', RoleMiddleware::using(Role::names([Role::FieldOfficer
         Route::get('/', [CollectionController::class, 'index'])->name('home');
         Route::get('schedules/{schedule}/collect', [CollectionController::class, 'create'])->name('collections.create');
         Route::post('schedules/{schedule}/collections', [CollectionController::class, 'store'])->name('collections.store');
+        Route::get('receipts/{transaction}', [ReceiptController::class, 'show'])->name('receipts.show');
     });

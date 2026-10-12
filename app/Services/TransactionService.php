@@ -123,7 +123,7 @@ class TransactionService
             $this->reject('schedule_id', 'schedule_mismatch');
         }
 
-        if ($schedule && ! in_array($schedule->status, [ScheduleStatus::Pending, ScheduleStatus::PartiallyPaid], true)) {
+        if ($schedule && ! $schedule->status->isCollectable()) {
             $this->reject('schedule_id', 'schedule_not_open');
         }
 
@@ -189,17 +189,17 @@ class TransactionService
     }
 
     /**
-     * Set a schedule row's status from what the ledger holds against it. Missed and cancelled rows
-     * keep their status unless something is collected on them.
+     * Set a schedule row's status from what the ledger holds against it. With nothing collected a
+     * row is missed once its day has passed, pending otherwise; cancelled rows stay cancelled.
      */
     private function settle(CollectionSchedule $schedule, User $actor): void
     {
         $collected = $this->ledger->collectedForSchedules([$schedule->id])[$schedule->id];
+        $isPastDue = $schedule->due_date->toDateString() < today(config('app.display_timezone'))->toDateString();
 
         $status = match (true) {
-            ! $collected->isPositive() => in_array($schedule->status, [ScheduleStatus::Paid, ScheduleStatus::PartiallyPaid], true)
-                ? ScheduleStatus::Pending
-                : $schedule->status,
+            $schedule->status === ScheduleStatus::Cancelled => ScheduleStatus::Cancelled,
+            ! $collected->isPositive() => $isPastDue ? ScheduleStatus::Missed : ScheduleStatus::Pending,
             $schedule->expected_amount->greaterThan($collected) => ScheduleStatus::PartiallyPaid,
             default => ScheduleStatus::Paid,
         };

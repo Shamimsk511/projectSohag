@@ -9,4 +9,12 @@ enum ScheduleStatus: string
     case Paid = 'paid';
     case Missed = 'missed';
     case Cancelled = 'cancelled';
+
+    /**
+     * A collection can still be recorded on the row (missed rows take arrears).
+     */
+    public function isCollectable(): bool
+    {
+        return in_array($this, [self::Pending, self::PartiallyPaid, self::Missed], true);
+    }
 }

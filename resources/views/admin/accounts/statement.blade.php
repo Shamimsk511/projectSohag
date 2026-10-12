@@ -89,7 +89,13 @@
                                     <div class="small text-body-secondary">{{ $transaction->description }}</div>
                                 @endif
                             </td>
-                            <td class="text-nowrap">{{ $transaction->receipt_no ?? $transaction->reference }}</td>
+                            <td class="text-nowrap">
+                                @if ($transaction->receipt_no)
+                                    <a href="{{ route('admin.transactions.receipt', $transaction) }}" target="_blank" rel="noopener">{{ $transaction->receipt_no }}</a>
+                                @else
+                                    {{ $transaction->reference }}
+                                @endif
+                            </td>
                             <td class="text-end text-nowrap">{{ $line->in?->format() }}</td>
                             <td class="text-end text-nowrap">{{ $line->out?->format() }}</td>
                             <td class="text-end text-nowrap">{{ $line->running->format() }}</td>

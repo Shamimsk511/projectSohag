@@ -88,6 +88,30 @@ class Transaction extends Model
     }
 
     /**
+     * @return BelongsTo<Party, $this>
+     */
+    public function party(): BelongsTo
+    {
+        return $this->belongsTo(Party::class);
+    }
+
+    /**
+     * @return BelongsTo<User, $this>
+     */
+    public function fieldOfficer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'field_officer_id');
+    }
+
+    /**
+     * @return BelongsTo<User, $this>
+     */
+    public function createdBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /**
      * The row this reversal cancels.
      *
      * @return BelongsTo<Transaction, $this>

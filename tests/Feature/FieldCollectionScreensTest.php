@@ -75,12 +75,12 @@ class FieldCollectionScreensTest extends TestCase
         $payload = ['amount' => '৫০০', 'payment_method' => 'cash', 'client_uuid' => (string) Str::uuid()];
 
         $this->actingAs($this->officer)->post(route('field.collections.store', $schedule), $payload)
-            ->assertRedirect(route('field.home'))
             ->assertSessionHas('status');
-        $this->actingAs($this->officer)->post(route('field.collections.store', $schedule), $payload)
-            ->assertRedirect(route('field.home'));
-
         $transaction = Transaction::query()->sole();
+        $this->actingAs($this->officer)->post(route('field.collections.store', $schedule), $payload)
+            ->assertRedirect(route('field.receipts.show', $transaction));
+
+        $this->assertSame(1, Transaction::query()->count());
         $this->assertSame(TransactionType::LoanCollection, $transaction->type);
         $this->assertSame($this->officer->id, $transaction->field_officer_id);
         $this->assertSame(50000, $transaction->amount->poisha);
@@ -123,6 +123,63 @@ class FieldCollectionScreensTest extends TestCase
 
         $this->actingAs($this->officer)->get(route('field.collections.create', $schedule))
             ->assertRedirect(route('field.home'));
+    }
+
+    public function test_earlier_unpaid_lists_own_missed_and_partial_rows_from_the_last_30_days(): void
+    {
+        $missed = $this->schedule(Account::factory()->create(), '100', ['due_date' => '2026-10-10', 'status' => ScheduleStatus::Missed]);
+        $partial = $this->schedule(Account::factory()->create(), '100', ['due_date' => '2026-09-12', 'status' => ScheduleStatus::PartiallyPaid]);
+        $tooOld = $this->schedule(Account::factory()->create(), '100', ['due_date' => '2026-09-11', 'status' => ScheduleStatus::Missed]);
+        $paid = $this->schedule(Account::factory()->create(), '100', ['due_date' => '2026-10-10', 'status' => ScheduleStatus::Paid]);
+        $others = CollectionSchedule::factory()->create([
+            'due_date' => '2026-10-10',
+            'status' => ScheduleStatus::Missed,
+            'field_officer_id' => User::factory()->withRole(Role::FieldOfficer)->create()->id,
+        ]);
+
+        $this->actingAs($this->officer)->get(route('field.home'))
+            ->assertOk()
+            ->assertSee(__('app.field.earlier'))
+            ->assertSee(route('field.collections.create', $missed))
+            ->assertSee(route('field.collections.create', $partial))
+            ->assertDontSee($tooOld->account->account_number)
+            ->assertDontSee($paid->account->account_number)
+            ->assertDontSee($others->account->account_number);
+
+        $this->actingAs($this->officer)->get(route('field.collections.create', $missed))->assertOk();
+    }
+
+    public function test_receipt_is_visible_to_its_officer_and_office_staff_only(): void
+    {
+        $schedule = $this->schedule(Account::factory()->loan()->create(), '500');
+        $this->collect($schedule, '500');
+        $transaction = Transaction::query()->sole();
+        $otherOfficer = User::factory()->withRole(Role::FieldOfficer)->create();
+        $manager = User::factory()->withRole(Role::Manager)->create();
+
+        $this->actingAs($this->officer)->get(route('field.receipts.show', $transaction))
+            ->assertOk()
+            ->assertSee((string) $transaction->receipt_no)
+            ->assertSee($schedule->party->name)
+            ->assertSee('৫০০.০০');
+        $this->actingAs($otherOfficer)->get(route('field.receipts.show', $transaction))->assertForbidden();
+        $this->actingAs($manager)->get(route('admin.transactions.receipt', $transaction))
+            ->assertOk()
+            ->assertSee((string) $transaction->receipt_no);
+        $this->actingAs($manager)->get(route('admin.accounts.statement', $schedule->account))
+            ->assertSee(route('admin.transactions.receipt', $transaction));
+    }
+
+    public function test_entries_without_a_receipt_number_have_no_receipt(): void
+    {
+        $disbursement = Transaction::factory()->create([
+            'account_id' => Account::factory()->loan()->create()->id,
+            'type' => TransactionType::LoanDisbursement,
+            'field_officer_id' => $this->officer->id,
+            'receipt_no' => null,
+        ]);
+
+        $this->actingAs($this->officer)->get(route('field.receipts.show', $disbursement))->assertForbidden();
     }
 
     /**
