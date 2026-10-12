@@ -106,20 +106,50 @@ class LedgerService
         return new AccountStatement($from, $to, $opening, $lines, $running);
     }
 
+    /**
+     * Office income and expense dated within the period, reversed rows left out.
+     *
+     * @return array{income: Money, expense: Money}
+     */
+    public function officeTotals(Carbon $from, Carbon $to): array
+    {
+        $sums = $this->effectiveRows()
+            ->whereNull('account_id')
+            ->whereIn('type', TransactionType::officeTypes())
+            ->datedBetween($from, $to)
+            ->groupBy('type')
+            ->selectRaw('type, sum(amount) as total')
+            ->pluck('total', 'type');
+
+        return [
+            'income' => Money::fromPoisha((int) ($sums[TransactionType::OfficeIncome->value] ?? 0)),
+            'expense' => Money::fromPoisha((int) ($sums[TransactionType::OfficeExpense->value] ?? 0)),
+        ];
+    }
+
     private function sum(Account $account, TransactionType $type): Money
     {
         return Money::fromPoisha((int) $this->effective($account)->where('type', $type)->sum('amount'));
     }
 
     /**
-     * The account's rows that still count: not reversed, and not reversals themselves.
+     * The account's rows that still count.
      *
      * @return Builder<Transaction>
      */
     private function effective(Account $account): Builder
     {
+        return $this->effectiveRows()->where('account_id', $account->id);
+    }
+
+    /**
+     * Rows that still count: not reversed, and not reversals themselves.
+     *
+     * @return Builder<Transaction>
+     */
+    private function effectiveRows(): Builder
+    {
         return Transaction::query()
-            ->where('account_id', $account->id)
             ->where('type', '!=', TransactionType::Reversal)
             ->whereNotExists(fn (QueryBuilder $reversal) => $reversal->from('transactions', 'reversals')
                 ->whereColumn('reversals.reverses_transaction_id', 'transactions.id'));

@@ -45,6 +45,11 @@ class AppServiceProvider extends ServiceProvider
                 'icon' => 'bi bi-geo-alt',
                 'can' => Permission::ManageParties->value,
             ], [
+                'text' => __('app.office_entries.title'),
+                'route' => 'admin.office-entries.index',
+                'icon' => 'bi bi-cash-coin',
+                'can' => [Permission::PostOfficeEntries->value, Permission::ViewAllReports->value],
+            ], [
                 'text' => __('app.users.title'),
                 'route' => 'admin.users.index',
                 'icon' => 'bi bi-people',

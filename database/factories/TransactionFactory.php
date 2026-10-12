@@ -42,6 +42,18 @@ class TransactionFactory extends Factory
     }
 
     /**
+     * Office income or expense: no account, no party.
+     */
+    public function office(TransactionType $type, string $taka): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'account_id' => null,
+            'type' => $type,
+            'amount' => Money::fromTaka($taka),
+        ]);
+    }
+
+    /**
      * A reversal row cancelling $original.
      */
     public function reversing(Transaction $original): static

@@ -21,6 +21,22 @@ class TransactionPolicy
         return $user->can(Permission::PostLedgerEntries->value) && $user->can('view', $account);
     }
 
+    /**
+     * See the office income/expense list.
+     */
+    public function viewOffice(User $user): bool
+    {
+        return $user->can(Permission::PostOfficeEntries->value) || $user->can(Permission::ViewAllReports->value);
+    }
+
+    /**
+     * Post office income or expense (no account).
+     */
+    public function createOffice(User $user): bool
+    {
+        return $user->can(Permission::PostOfficeEntries->value);
+    }
+
     public function reverse(User $user, Transaction $transaction): bool
     {
         return $user->can(Permission::ReverseTransactions->value)

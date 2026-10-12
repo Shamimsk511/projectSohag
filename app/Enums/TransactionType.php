@@ -43,6 +43,16 @@ enum TransactionType: string
     }
 
     /**
+     * Office income and expense: posted without an account from the office entries screen.
+     *
+     * @return list<self>
+     */
+    public static function officeTypes(): array
+    {
+        return [self::OfficeIncome, self::OfficeExpense];
+    }
+
+    /**
      * Money received from a party gets a receipt number.
      */
     public function issuesReceipt(): bool

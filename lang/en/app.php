@@ -243,4 +243,16 @@ return [
             'reversal' => 'Reversal',
         ],
     ],
+    'office_entries' => [
+        'title' => 'Office income/expense',
+        'new' => 'New office entry',
+        'description' => 'What it was for',
+        'description_hint' => 'e.g. office rent for October, stationery, membership form fees.',
+        'income_total' => 'Income',
+        'expense_total' => 'Expense',
+        'net_total' => 'Income minus expense',
+        'totals_hint' => 'Reversed entries are not counted.',
+        'empty' => 'No office entries in this period.',
+        'reversed_on' => 'Reversed on :date: :reason',
+    ],
 ];

@@ -7,9 +7,11 @@ use App\Enums\TransactionType;
 use App\Support\Money;
 use Database\Factories\TransactionFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
 use LogicException;
 
@@ -66,6 +68,18 @@ class Transaction extends Model
     }
 
     /**
+     * Rows dated from $from to $to inclusive. Half-open on the next day because SQLite keeps the
+     * date cast as "Y-m-d 00:00:00", which a plain BETWEEN on the end date would miss.
+     *
+     * @param  Builder<self>  $query
+     */
+    public function scopeDatedBetween(Builder $query, Carbon $from, Carbon $to): void
+    {
+        $query->where('transaction_date', '>=', $from->toDateString())
+            ->where('transaction_date', '<', $to->copy()->addDay()->toDateString());
+    }
+
+    /**
      * @return BelongsTo<Account, $this>
      */
     public function account(): BelongsTo
@@ -81,5 +95,15 @@ class Transaction extends Model
     public function reversedTransaction(): BelongsTo
     {
         return $this->belongsTo(Transaction::class, 'reverses_transaction_id');
+    }
+
+    /**
+     * The reversal row cancelling this one, if any.
+     *
+     * @return HasOne<Transaction, $this>
+     */
+    public function reversal(): HasOne
+    {
+        return $this->hasOne(Transaction::class, 'reverses_transaction_id');
     }
 }

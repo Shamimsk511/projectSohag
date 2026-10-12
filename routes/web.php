@@ -3,6 +3,7 @@
 use App\Enums\Role;
 use App\Http\Controllers\Admin\AccountController;
 use App\Http\Controllers\Admin\AreaController;
+use App\Http\Controllers\Admin\OfficeEntryController;
 use App\Http\Controllers\Admin\PartyAssignmentController;
 use App\Http\Controllers\Admin\PartyController;
 use App\Http\Controllers\Admin\PartyPhotoUploadController;
@@ -34,6 +35,8 @@ Route::middleware(['auth', RoleMiddleware::using(Role::names(Role::office()))])
         Route::post('accounts/{account}/adjustments', [AccountController::class, 'adjust'])->name('accounts.adjust');
         Route::post('accounts/{account}/close', [AccountController::class, 'close'])->name('accounts.close');
         Route::post('accounts/{account}/transactions', [TransactionController::class, 'store'])->name('accounts.transactions.store');
+        Route::get('office-entries', [OfficeEntryController::class, 'index'])->name('office-entries.index');
+        Route::post('office-entries', [OfficeEntryController::class, 'store'])->name('office-entries.store');
         Route::post('transactions/{transaction}/reverse', [TransactionController::class, 'reverse'])->name('transactions.reverse');
         Route::post('uploads/party-photo', [PartyPhotoUploadController::class, 'store'])->name('uploads.party-photo.store');
         Route::delete('uploads/party-photo', [PartyPhotoUploadController::class, 'destroy'])->name('uploads.party-photo.destroy');
