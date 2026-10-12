@@ -58,6 +58,9 @@ Route::middleware(['auth', RoleMiddleware::using(Role::names(Role::office()))])
         Route::delete('uploads/party-photo', [PartyPhotoUploadController::class, 'destroy'])->name('uploads.party-photo.destroy');
     });
 
+// Public: the service worker precaches it as the offline fallback for /field pages.
+Route::view('field/offline', 'field.offline')->name('field.offline');
+
 Route::middleware(['auth', RoleMiddleware::using(Role::names([Role::FieldOfficer, Role::Admin]))])
     ->prefix('field')->name('field.')->group(function () {
         Route::get('/', [CollectionController::class, 'index'])->name('home');

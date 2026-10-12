@@ -334,6 +334,10 @@ return [
         'confirm' => 'Save this collection? It cannot be edited later.',
         'saved' => ':amount received from :party. Receipt no: :receipt',
         'back' => 'Back to today',
+        'app_name' => 'Srijonshil',
+        'offline_title' => 'You are offline',
+        'offline_text' => 'This page needs a connection. Check your internet and try again.',
+        'retry' => 'Try again',
     ],
     'cash' => [
         'title' => 'Cash handover',

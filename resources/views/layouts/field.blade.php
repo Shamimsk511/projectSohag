@@ -4,19 +4,28 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta name="theme-color" content="#0d6efd">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="{{ __('app.field.app_name') }}">
+    <link rel="manifest" href="/manifest.webmanifest">
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
     <title>@hasSection('title')@yield('title') | @endif{{ config('app.name') }}</title>
     @vite('resources/js/field.js')
 </head>
-<body class="bg-body-tertiary">
+{{-- Service worker only for built assets: the manifest hash versions its cache; never under the Vite dev server. --}}
+<body class="bg-body-tertiary" @if (! Vite::isRunningHot() && $swVersion = Vite::manifestHash()) data-sw="/field-sw.js?v={{ $swVersion }}" @endif>
     <header class="navbar bg-body border-bottom px-3 d-print-none">
         <span class="navbar-brand mb-0 h1">{{ config('app.name') }}</span>
-        <form method="POST" action="{{ route('logout') }}">
-            @csrf
-            <button type="submit" class="btn btn-outline-secondary btn-lg">
-                <i class="bi bi-box-arrow-right" aria-hidden="true"></i>
-                {{ __('app.logout') }}
-            </button>
-        </form>
+        @sectionMissing('hide_logout')
+            <form method="POST" action="{{ route('logout') }}">
+                @csrf
+                <button type="submit" class="btn btn-outline-secondary btn-lg">
+                    <i class="bi bi-box-arrow-right" aria-hidden="true"></i>
+                    {{ __('app.logout') }}
+                </button>
+            </form>
+        @endif
     </header>
     <main class="container py-3">
         @yield('content')

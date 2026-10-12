@@ -39,3 +39,11 @@ document.addEventListener('click', (event) => {
 if (navigator.share) {
     document.querySelectorAll('.js-share').forEach((button) => button.classList.remove('d-none'));
 }
+
+// Offline shell (public/field-sw.js). The layout only sets data-sw for built assets.
+const serviceWorkerUrl = document.body.dataset.sw;
+if (serviceWorkerUrl && 'serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register(serviceWorkerUrl, { scope: '/field' }).catch(() => {});
+    });
+}

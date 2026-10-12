@@ -7,10 +7,10 @@ Goal: an officer installs the app on their phone, sees today's collection list, 
 - Screens: Today (summary + list), Party detail, Collect payment, Receipt, History (own), Sync status, Profile.
 
 ## Installability
-- `public/manifest.webmanifest`: name, short_name, `start_url: /field`, `scope: /field/`, `display: standalone`, theme/background colors, 192 and 512 px icons plus a maskable icon.
+- `public/manifest.webmanifest`: name, short_name, `start_url: /field`, `scope: /field` (no trailing slash: `/field` itself would fall outside `/field/`), `display: standalone`, theme/background colors, 192 and 512 px icons plus a maskable icon.
 - `<link rel="manifest">`, theme-color meta, apple-touch-icon in the field layout.
 - Must be served over HTTPS (localhost is fine for dev).
-- Hand-written service worker at `public/field-sw.js` registered with scope `/field/`. Do not add a PWA Vite plugin unless it is confirmed compatible with the installed Vite version.
+- Hand-written service worker at `public/field-sw.js` registered with scope `/field` as `/field-sw.js?v=<Vite manifest hash>` (cache version; not registered under the Vite dev server). Do not add a PWA Vite plugin unless it is confirmed compatible with the installed Vite version.
 
 ## Offline strategy
 - Cache the app shell (layout, JS, CSS, fonts, icons) with cache-first, versioned cache name.
