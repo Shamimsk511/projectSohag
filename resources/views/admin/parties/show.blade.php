@@ -11,12 +11,13 @@
 
     @php
         $notSet = __('app.parties.not_set');
+        $date = fn (?\Illuminate\Support\Carbon $value): ?string => $value ? \App\Support\Numerals::localize($value->format('d/m/Y')) : null;
         $details = [
             __('app.parties.father_or_husband_name') => $party->father_or_husband_name,
             __('app.parties.mother_name') => $party->mother_name,
             __('app.parties.phone') => $party->phone ? \App\Support\Numerals::localize($party->phone) : null,
             __('app.parties.national_id') => $party->national_id ? \App\Support\Numerals::localize($party->national_id) : null,
-            __('app.parties.date_of_birth') => $party->date_of_birth ? \App\Support\Numerals::localize($party->date_of_birth->format('d/m/Y')) : null,
+            __('app.parties.date_of_birth') => $date($party->date_of_birth),
             __('app.parties.gender') => $party->gender ? __('app.genders.'.$party->gender->value) : null,
             __('app.parties.area') => $party->area->name,
             __('app.parties.address') => $party->address,
@@ -77,10 +78,7 @@
         </div>
 
         <div class="col-lg-4">
-            <div class="card mb-3">
-                <div class="card-header"><h3 class="card-title mb-0">{{ __('app.parties.field_officer') }}</h3></div>
-                <div class="card-body text-body-secondary">{{ __('app.parties.not_assigned') }}</div>
-            </div>
+            @include('admin.parties._assignment')
             <div class="card mb-3">
                 <div class="card-header"><h3 class="card-title mb-0">{{ __('app.parties.accounts') }}</h3></div>
                 <div class="card-body text-body-secondary">{{ __('app.parties.no_accounts') }}</div>

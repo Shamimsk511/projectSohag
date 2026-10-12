@@ -8,6 +8,8 @@ use App\Http\Requests\Admin\StorePartyRequest;
 use App\Http\Requests\Admin\UpdatePartyRequest;
 use App\Models\Area;
 use App\Models\Party;
+use App\Models\PartyAssignment;
+use App\Models\User;
 use App\Services\PartyPhotoStore;
 use App\Services\PartyService;
 use App\Services\PartyTableQuery;
@@ -74,7 +76,13 @@ class PartyController extends Controller
     {
         Gate::authorize('view', $party);
 
-        return view('admin.parties.show', ['party' => $party->load('area')]);
+        $party->load(['area', 'assignments.fieldOfficer', 'assignments.assignedBy']);
+
+        return view('admin.parties.show', [
+            'party' => $party,
+            'currentAssignment' => $party->assignments->first(fn (PartyAssignment $assignment): bool => $assignment->isActive()),
+            'officers' => Gate::allows('assign', $party) ? User::activeFieldOfficers()->orderBy('name')->get() : collect(),
+        ]);
     }
 
     public function edit(Party $party): View

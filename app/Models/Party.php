@@ -6,9 +6,12 @@ use App\Enums\ActiveStatus;
 use App\Enums\Gender;
 use Database\Factories\PartyFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
 
 /**
@@ -63,6 +66,34 @@ class Party extends Model
     public function area(): BelongsTo
     {
         return $this->belongsTo(Area::class);
+    }
+
+    /**
+     * Assignment history, newest first.
+     *
+     * @return HasMany<PartyAssignment, $this>
+     */
+    public function assignments(): HasMany
+    {
+        return $this->hasMany(PartyAssignment::class)->latest('id');
+    }
+
+    /**
+     * @return HasOne<PartyAssignment, $this>
+     */
+    public function activeAssignment(): HasOne
+    {
+        return $this->hasOne(PartyAssignment::class)->whereNull('assigned_until');
+    }
+
+    /**
+     * Parties the given field officer is currently responsible for.
+     *
+     * @param  Builder<self>  $query
+     */
+    public function scopeAssignedTo(Builder $query, User $officer): void
+    {
+        $query->whereHas('activeAssignment', fn (Builder $assignment) => $assignment->where('field_officer_id', $officer->id));
     }
 
     public function isActive(): bool

@@ -8,6 +8,7 @@ use App\Enums\UserStatus;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -40,6 +41,16 @@ class User extends Authenticatable
     public function isActive(): bool
     {
         return $this->status === UserStatus::Active;
+    }
+
+    /**
+     * Field officers who can take on parties.
+     *
+     * @param  Builder<self>  $query
+     */
+    public function scopeActiveFieldOfficers(Builder $query): void
+    {
+        $query->role(Role::FieldOfficer->value)->where('status', UserStatus::Active);
     }
 
     /**

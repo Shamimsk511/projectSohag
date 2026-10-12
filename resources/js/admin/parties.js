@@ -1,15 +1,18 @@
 /**
- * Party pages: server-side DataTable list, Select2 area picker and FilePond photo upload.
+ * Party pages: server-side DataTable list, Select2 pickers, FilePond photo upload and
+ * SweetAlert2 confirmation for forms marked `.js-confirm`.
  * Loaded only on party pages (pushed from the views), so other admin pages stay light.
  */
 import $ from 'jquery';
 import DataTable from 'datatables.net-bs5';
 import select2 from 'select2';
 import * as FilePond from 'filepond';
+import Swal from 'sweetalert2';
 
 import 'datatables.net-bs5/css/dataTables.bootstrap5.css';
 import 'select2/dist/css/select2.css';
 import 'filepond/dist/filepond.css';
+import 'sweetalert2/dist/sweetalert2.css';
 
 select2(window, $);
 
@@ -107,6 +110,28 @@ function initPhotoUpload(input) {
     });
 }
 
+function initConfirm(form) {
+    const strings = JSON.parse(form.dataset.confirm);
+
+    form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+
+        const result = await Swal.fire({
+            icon: 'warning',
+            title: strings.title,
+            text: strings.text,
+            showCancelButton: true,
+            confirmButtonText: strings.confirm,
+            cancelButtonText: strings.cancel,
+            focusCancel: true,
+        });
+
+        if (result.isConfirmed) {
+            form.submit();
+        }
+    });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     const table = document.getElementById('parties-table');
     if (table) {
@@ -118,4 +143,5 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     document.querySelectorAll('input.js-filepond').forEach(initPhotoUpload);
+    document.querySelectorAll('form.js-confirm').forEach(initConfirm);
 });
