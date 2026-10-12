@@ -1,6 +1,9 @@
 <?php
 
 use App\Enums\Role;
+use App\Http\Controllers\Admin\AreaController;
+use App\Http\Controllers\Admin\PartyController;
+use App\Http\Controllers\Admin\PartyPhotoUploadController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\HomeController;
 use Illuminate\Support\Facades\Auth;
@@ -15,6 +18,12 @@ Route::middleware(['auth', RoleMiddleware::using(Role::names(Role::office()))])
     ->prefix('admin')->name('admin.')->group(function () {
         Route::view('/', 'admin.dashboard')->name('dashboard');
         Route::resource('users', UserController::class)->except(['show', 'destroy']);
+        Route::resource('areas', AreaController::class)->except(['show', 'destroy']);
+        Route::get('parties/data', [PartyController::class, 'data'])->name('parties.data');
+        Route::get('parties/{party}/photo', [PartyController::class, 'photo'])->name('parties.photo');
+        Route::resource('parties', PartyController::class)->except(['destroy']);
+        Route::post('uploads/party-photo', [PartyPhotoUploadController::class, 'store'])->name('uploads.party-photo.store');
+        Route::delete('uploads/party-photo', [PartyPhotoUploadController::class, 'destroy'])->name('uploads.party-photo.destroy');
     });
 
 Route::middleware(['auth', RoleMiddleware::using(Role::names([Role::FieldOfficer, Role::Admin]))])

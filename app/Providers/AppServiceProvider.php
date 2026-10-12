@@ -33,6 +33,18 @@ class AppServiceProvider extends ServiceProvider
         // Items with app-translated labels; config/adminlte.php can only use the package's menu strings.
         Event::listen(BuildingMenu::class, function (BuildingMenu $event): void {
             $event->menu->add([
+                'text' => __('app.parties.title'),
+                'route' => 'admin.parties.index',
+                'active' => ['admin/parties*'],
+                'icon' => 'bi bi-person-vcard',
+                'can' => [Permission::ViewAllParties->value, Permission::ManageParties->value],
+            ], [
+                'text' => __('app.areas.title'),
+                'route' => 'admin.areas.index',
+                'active' => ['admin/areas*'],
+                'icon' => 'bi bi-geo-alt',
+                'can' => Permission::ManageParties->value,
+            ], [
                 'text' => __('app.users.title'),
                 'route' => 'admin.users.index',
                 'icon' => 'bi bi-people',

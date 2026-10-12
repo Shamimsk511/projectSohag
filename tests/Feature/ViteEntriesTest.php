@@ -44,6 +44,18 @@ class ViteEntriesTest extends TestCase
             ->assertDontSee('resources/js/field.js', false);
     }
 
+    public function test_party_script_loads_only_on_party_pages(): void
+    {
+        $admin = User::factory()->withRole(Role::Admin)->create();
+
+        $this->actingAs($admin)->get('/admin/parties')
+            ->assertOk()
+            ->assertSee('http://vite.test/resources/js/admin/parties.js', false);
+
+        $this->actingAs($admin)->get('/admin')
+            ->assertDontSee('resources/js/admin/parties.js', false);
+    }
+
     public function test_field_layout_loads_only_the_field_entry(): void
     {
         $this->actingAs(User::factory()->withRole(Role::FieldOfficer)->create())
