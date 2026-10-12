@@ -77,6 +77,8 @@
                 </div>
             </div>
 
+            @include('admin.accounts._schedules')
+
             @if ($account->isLoan())
                 <div class="card mb-3">
                     <div class="card-header"><h3 class="card-title mb-0">{{ __('app.accounts.adjustments') }}</h3></div>
@@ -107,6 +109,8 @@
                 @endif
 
                 @if ($canManage)
+                    @include('admin.accounts._plan_form')
+
                     @if ($account->isLoan())
                         <form method="POST" action="{{ route('admin.accounts.adjust', $account) }}" class="card mb-3">
                             @csrf

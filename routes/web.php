@@ -3,6 +3,8 @@
 use App\Enums\Role;
 use App\Http\Controllers\Admin\AccountController;
 use App\Http\Controllers\Admin\AreaController;
+use App\Http\Controllers\Admin\CollectionPlanController;
+use App\Http\Controllers\Admin\HolidayController;
 use App\Http\Controllers\Admin\OfficeEntryController;
 use App\Http\Controllers\Admin\PartyAssignmentController;
 use App\Http\Controllers\Admin\PartyController;
@@ -34,6 +36,8 @@ Route::middleware(['auth', RoleMiddleware::using(Role::names(Role::office()))])
         Route::get('accounts/{account}/statement', [AccountController::class, 'statement'])->name('accounts.statement');
         Route::post('accounts/{account}/adjustments', [AccountController::class, 'adjust'])->name('accounts.adjust');
         Route::post('accounts/{account}/close', [AccountController::class, 'close'])->name('accounts.close');
+        Route::put('accounts/{account}/collection-plan', [CollectionPlanController::class, 'update'])->name('accounts.collection-plan.update');
+        Route::resource('holidays', HolidayController::class)->only(['index', 'store', 'destroy']);
         Route::post('accounts/{account}/transactions', [TransactionController::class, 'store'])->name('accounts.transactions.store');
         Route::get('office-entries', [OfficeEntryController::class, 'index'])->name('office-entries.index');
         Route::post('office-entries', [OfficeEntryController::class, 'store'])->name('office-entries.store');

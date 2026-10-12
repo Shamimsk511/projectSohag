@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
 
 /**
@@ -74,6 +75,22 @@ class Account extends Model
     public function transactions(): HasMany
     {
         return $this->hasMany(Transaction::class);
+    }
+
+    /**
+     * @return HasOne<CollectionPlan, $this>
+     */
+    public function collectionPlan(): HasOne
+    {
+        return $this->hasOne(CollectionPlan::class);
+    }
+
+    /**
+     * @return HasMany<CollectionSchedule, $this>
+     */
+    public function schedules(): HasMany
+    {
+        return $this->hasMany(CollectionSchedule::class);
     }
 
     /**

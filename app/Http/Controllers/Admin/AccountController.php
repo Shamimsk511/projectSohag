@@ -46,7 +46,8 @@ class AccountController extends Controller
     {
         Gate::authorize('view', $account);
 
-        $account->load(['party', 'closedBy', 'adjustments.createdBy']);
+        $account->load(['party', 'closedBy', 'adjustments.createdBy', 'collectionPlan']);
+        $today = today(config('app.display_timezone'))->toDateString();
 
         return view('admin.accounts.show', [
             'account' => $account,
@@ -54,6 +55,8 @@ class AccountController extends Controller
             'remaining' => $ledger->remainingBalance($account),
             'canPost' => Gate::allows('create', [Transaction::class, $account]),
             'canManage' => Gate::allows('update', $account),
+            'upcoming' => $account->schedules()->with('fieldOfficer')->where('due_date', '>=', $today)
+                ->orderBy('due_date')->limit(10)->get(),
         ]);
     }
 

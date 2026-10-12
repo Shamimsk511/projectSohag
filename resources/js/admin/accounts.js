@@ -1,5 +1,6 @@
 /**
- * Account pages: show the contract amount field only for loans, and confirm before closing.
+ * Account pages: show the contract amount field only for loans, weekday choices only for daily
+ * collection plans, and confirm before closing.
  */
 import { initConfirmForms } from './confirm.js';
 
@@ -18,7 +19,22 @@ function initTypeToggle(form) {
     sync();
 }
 
+function initPlanToggle(form) {
+    const frequency = form.querySelector('select[name="frequency"]');
+    const weekdays = form.querySelector('[data-daily-only]');
+
+    const sync = () => {
+        const isDaily = frequency.value === 'daily';
+        weekdays.hidden = !isDaily;
+        weekdays.disabled = !isDaily;
+    };
+
+    frequency.addEventListener('change', sync);
+    sync();
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('form.js-account-form').forEach(initTypeToggle);
+    document.querySelectorAll('form.js-plan-form').forEach(initPlanToggle);
     initConfirmForms();
 });

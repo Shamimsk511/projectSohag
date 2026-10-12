@@ -13,6 +13,7 @@ enum Permission: string
     case ManageParties = 'parties.manage';
     case AssignParties = 'parties.assign';
     case ManageAccounts = 'accounts.manage';
+    case ManageSchedules = 'schedules.manage';
     case RecordCollections = 'collections.record';
     case PostLedgerEntries = 'ledger.post';
     case PostOfficeEntries = 'office_entries.post';
@@ -30,7 +31,8 @@ enum Permission: string
         return match ($this) {
             self::ManageUsers, self::OverrideLimits => [],
             self::ViewAllParties => [Role::Manager, Role::Accountant],
-            self::ManageParties, self::AssignParties, self::ManageAccounts, self::ReverseTransactions => [Role::Manager],
+            self::ManageParties, self::AssignParties, self::ManageAccounts, self::ManageSchedules,
+            self::ReverseTransactions => [Role::Manager],
             self::RecordCollections => [Role::Manager, Role::FieldOfficer],
             self::PostLedgerEntries, self::PostOfficeEntries => [Role::Accountant],
             self::ViewAllReports => [Role::Manager, Role::Accountant],

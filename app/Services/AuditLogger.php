@@ -52,10 +52,18 @@ class AuditLogger
     }
 
     /**
-     * @param  array<string, mixed>|null  $before
-     * @param  array<string, mixed>  $after
+     * Log a row about to be deleted with all its columns. Only for non-ledger rows (e.g. holidays).
      */
-    private function write(string $action, Model $model, ?User $actor, ?array $before, array $after): AuditLog
+    public function deleted(string $action, Model $model, ?User $actor): AuditLog
+    {
+        return $this->write($action, $model, $actor, $this->redact($model, $model->getAttributes()), null);
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $before
+     * @param  array<string, mixed>|null  $after
+     */
+    private function write(string $action, Model $model, ?User $actor, ?array $before, ?array $after): AuditLog
     {
         $request = request();
 
