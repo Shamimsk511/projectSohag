@@ -31,4 +31,15 @@ enum AccountType: string
             self::Loan => [TransactionType::LoanDisbursement],
         };
     }
+
+    /**
+     * What a scheduled collection on this account records: an installment or a savings deposit.
+     */
+    public function collectionType(): TransactionType
+    {
+        return match ($this) {
+            self::Saving => TransactionType::SavingDeposit,
+            self::Loan => TransactionType::LoanCollection,
+        };
+    }
 }

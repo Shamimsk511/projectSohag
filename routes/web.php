@@ -12,6 +12,7 @@ use App\Http\Controllers\Admin\PartyPhotoUploadController;
 use App\Http\Controllers\Admin\ScheduleController;
 use App\Http\Controllers\Admin\TransactionController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\Field\CollectionController;
 use App\Http\Controllers\HomeController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -53,5 +54,7 @@ Route::middleware(['auth', RoleMiddleware::using(Role::names(Role::office()))])
 
 Route::middleware(['auth', RoleMiddleware::using(Role::names([Role::FieldOfficer, Role::Admin]))])
     ->prefix('field')->name('field.')->group(function () {
-        Route::view('/', 'field.home')->name('home');
+        Route::get('/', [CollectionController::class, 'index'])->name('home');
+        Route::get('schedules/{schedule}/collect', [CollectionController::class, 'create'])->name('collections.create');
+        Route::post('schedules/{schedule}/collections', [CollectionController::class, 'store'])->name('collections.store');
     });

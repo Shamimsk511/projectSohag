@@ -6,3 +6,21 @@ import './fonts.js';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'bootstrap-icons/font/bootstrap-icons.min.css';
 import '../css/field.css';
+
+// Ask before saving forms that cannot be undone (collections are immutable).
+document.addEventListener('submit', (event) => {
+    const form = event.target;
+    if (form instanceof HTMLFormElement && form.matches('.js-confirm') && !window.confirm(form.dataset.confirm)) {
+        event.preventDefault();
+    }
+});
+
+// "Full due" quick fill: copy the remaining amount into the amount input.
+document.addEventListener('click', (event) => {
+    const button = event.target instanceof Element ? event.target.closest('.js-full-due') : null;
+    const input = button ? document.getElementById(button.dataset.target) : null;
+    if (input) {
+        input.value = input.dataset.fullDue;
+        input.focus();
+    }
+});

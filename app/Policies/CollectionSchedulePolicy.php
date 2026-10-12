@@ -7,7 +7,7 @@ use App\Models\CollectionSchedule;
 use App\Models\User;
 
 /**
- * Office-side schedule screens. Field officers see their own day lists in /field, not here.
+ * Office-side schedule screens, plus collecting on a row from the field officer's day list.
  */
 class CollectionSchedulePolicy
 {
@@ -27,5 +27,13 @@ class CollectionSchedulePolicy
     public function update(User $user, CollectionSchedule $schedule): bool
     {
         return $user->can(Permission::ManageSchedules->value);
+    }
+
+    /**
+     * Record a collection on the row: only the officer the row is assigned to.
+     */
+    public function collect(User $user, CollectionSchedule $schedule): bool
+    {
+        return $user->can(Permission::RecordCollections->value) && $schedule->field_officer_id === $user->id;
     }
 }

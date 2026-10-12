@@ -3,8 +3,10 @@
 namespace App\Services;
 
 use App\Enums\Permission;
+use App\Enums\ScheduleStatus;
 use App\Enums\TransactionType;
 use App\Models\Account;
+use App\Models\CollectionSchedule;
 use App\Models\Transaction;
 use App\Models\User;
 use App\Support\TransactionData;
@@ -93,6 +95,10 @@ class TransactionService
 
             $this->audit->created('transaction.reversed', $reversal, $actor);
 
+            if ($original->schedule_id !== null) {
+                $this->settle($this->lockSchedule($original->schedule_id), $actor);
+            }
+
             return $reversal;
         });
     }
@@ -109,6 +115,16 @@ class TransactionService
 
         if ($type->accountType() !== $account?->account_type) {
             $this->reject('account_id', 'account_mismatch');
+        }
+
+        $schedule = $data->schedule ? $this->lockSchedule($data->schedule->id) : null;
+
+        if ($schedule && ($schedule->account_id !== $account?->id || $type !== $account->account_type->collectionType())) {
+            $this->reject('schedule_id', 'schedule_mismatch');
+        }
+
+        if ($schedule && ! in_array($schedule->status, [ScheduleStatus::Pending, ScheduleStatus::PartiallyPaid], true)) {
+            $this->reject('schedule_id', 'schedule_not_open');
         }
 
         if (! $data->amount->isPositive()) {
@@ -149,6 +165,7 @@ class TransactionService
             'account_id' => $account?->id,
             'party_id' => $account?->party_id,
             'field_officer_id' => $data->fieldOfficer?->id,
+            'schedule_id' => $schedule?->id,
             'type' => $type,
             'amount' => $data->amount,
             'payment_method' => $data->paymentMethod,
@@ -164,7 +181,31 @@ class TransactionService
 
         $this->audit->created('transaction.recorded', $transaction, $actor);
 
+        if ($schedule) {
+            $this->settle($schedule, $actor);
+        }
+
         return $transaction;
+    }
+
+    /**
+     * Set a schedule row's status from what the ledger holds against it. Missed and cancelled rows
+     * keep their status unless something is collected on them.
+     */
+    private function settle(CollectionSchedule $schedule, User $actor): void
+    {
+        $collected = $this->ledger->collectedForSchedules([$schedule->id])[$schedule->id];
+
+        $status = match (true) {
+            ! $collected->isPositive() => in_array($schedule->status, [ScheduleStatus::Paid, ScheduleStatus::PartiallyPaid], true)
+                ? ScheduleStatus::Pending
+                : $schedule->status,
+            $schedule->expected_amount->greaterThan($collected) => ScheduleStatus::PartiallyPaid,
+            default => ScheduleStatus::Paid,
+        };
+
+        $schedule->update(['status' => $status]);
+        $this->audit->updated('schedule.status_changed', $schedule, $actor);
     }
 
     /**
@@ -187,6 +228,11 @@ class TransactionService
     private function lockAccount(int $accountId): Account
     {
         return Account::query()->whereKey($accountId)->lockForUpdate()->firstOrFail();
+    }
+
+    private function lockSchedule(int $scheduleId): CollectionSchedule
+    {
+        return CollectionSchedule::query()->whereKey($scheduleId)->lockForUpdate()->firstOrFail();
     }
 
     private function reject(string $field, string $key): never

@@ -127,6 +127,28 @@ class LedgerService
         ];
     }
 
+    /**
+     * Collected so far on each schedule row, reversed rows left out. Every id gets an entry.
+     *
+     * @param  list<int>  $scheduleIds
+     * @return array<int, Money>
+     */
+    public function collectedForSchedules(array $scheduleIds): array
+    {
+        $sums = $scheduleIds === [] ? collect() : $this->effectiveRows()
+            ->whereIn('schedule_id', $scheduleIds)
+            ->groupBy('schedule_id')
+            ->selectRaw('schedule_id, sum(amount) as total')
+            ->pluck('total', 'schedule_id');
+
+        $collected = [];
+        foreach ($scheduleIds as $id) {
+            $collected[$id] = Money::fromPoisha((int) ($sums[$id] ?? 0));
+        }
+
+        return $collected;
+    }
+
     private function sum(Account $account, TransactionType $type): Money
     {
         return Money::fromPoisha((int) $this->effective($account)->where('type', $type)->sum('amount'));
