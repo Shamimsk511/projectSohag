@@ -10,6 +10,7 @@ use App\Http\Requests\Admin\CloseAccountRequest;
 use App\Http\Requests\Admin\StoreAccountRequest;
 use App\Models\Account;
 use App\Models\Party;
+use App\Models\Transaction;
 use App\Services\AccountService;
 use App\Services\LedgerService;
 use Illuminate\Http\RedirectResponse;
@@ -51,6 +52,8 @@ class AccountController extends Controller
             'account' => $account,
             'received' => $account->isLoan() ? $ledger->loanReceived($account) : null,
             'remaining' => $ledger->remainingBalance($account),
+            'canPost' => Gate::allows('create', [Transaction::class, $account]),
+            'canManage' => Gate::allows('update', $account),
         ]);
     }
 

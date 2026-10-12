@@ -1,6 +1,7 @@
 /**
  * SweetAlert2 confirmation for forms marked `.js-confirm`. Strings come from the form's
- * `data-confirm` JSON: { title, text, confirm, cancel }.
+ * `data-confirm` JSON: { title, text, confirm, cancel, input? }. With `input` (its label), the dialog
+ * asks for a required reason and copies it into the form's hidden `reason` field before submitting.
  */
 import Swal from 'sweetalert2';
 
@@ -20,10 +21,19 @@ export function initConfirmForms(root = document) {
                 showCancelButton: true,
                 confirmButtonText: strings.confirm,
                 cancelButtonText: strings.cancel,
-                focusCancel: true,
+                focusCancel: !strings.input,
+                ...(strings.input && {
+                    input: 'textarea',
+                    inputLabel: strings.input,
+                    inputAttributes: { maxlength: '500', 'aria-label': strings.input },
+                    inputValidator: (value) => (value.trim() === '' ? strings.input : undefined),
+                }),
             });
 
             if (result.isConfirmed) {
+                if (strings.input) {
+                    form.querySelector('input[name="reason"]').value = result.value.trim();
+                }
                 form.submit();
             }
         });

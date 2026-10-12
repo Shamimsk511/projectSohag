@@ -60,7 +60,8 @@ class LedgerService
             ->whereIn('type', [...array_keys($columns), TransactionType::Reversal->value])
             ->orderBy('transaction_date')
             ->orderBy('id')
-            ->get();
+            ->get()
+            ->each(fn (Transaction $row) => $row->setRelation('account', $account));
         $byId = $rows->keyBy('id');
         $reversedIds = $rows->pluck('reverses_transaction_id')->filter()->flip();
 

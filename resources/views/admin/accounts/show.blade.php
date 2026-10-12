@@ -100,9 +100,13 @@
             @endif
         </div>
 
-        @if ($account->isActive())
-            @can('update', $account)
-                <div class="col-lg-4">
+        @if ($account->isActive() && ($canPost || $canManage))
+            <div class="col-lg-4">
+                @if ($canPost)
+                    @include('admin.accounts._entry_form')
+                @endif
+
+                @if ($canManage)
                     @if ($account->isLoan())
                         <form method="POST" action="{{ route('admin.accounts.adjust', $account) }}" class="card mb-3">
                             @csrf
@@ -145,12 +149,12 @@
                             </button>
                         </div>
                     </form>
-                </div>
+                @endif
+            </div>
 
-                @push('js')
-                    @vite('resources/js/admin/accounts.js')
-                @endpush
-            @endcan
+            @push('js')
+                @vite('resources/js/admin/accounts.js')
+            @endpush
         @endif
     </div>
 @stop

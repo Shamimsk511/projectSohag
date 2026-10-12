@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\AreaController;
 use App\Http\Controllers\Admin\PartyAssignmentController;
 use App\Http\Controllers\Admin\PartyController;
 use App\Http\Controllers\Admin\PartyPhotoUploadController;
+use App\Http\Controllers\Admin\TransactionController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\HomeController;
 use Illuminate\Support\Facades\Auth;
@@ -32,6 +33,8 @@ Route::middleware(['auth', RoleMiddleware::using(Role::names(Role::office()))])
         Route::get('accounts/{account}/statement', [AccountController::class, 'statement'])->name('accounts.statement');
         Route::post('accounts/{account}/adjustments', [AccountController::class, 'adjust'])->name('accounts.adjust');
         Route::post('accounts/{account}/close', [AccountController::class, 'close'])->name('accounts.close');
+        Route::post('accounts/{account}/transactions', [TransactionController::class, 'store'])->name('accounts.transactions.store');
+        Route::post('transactions/{transaction}/reverse', [TransactionController::class, 'reverse'])->name('transactions.reverse');
         Route::post('uploads/party-photo', [PartyPhotoUploadController::class, 'store'])->name('uploads.party-photo.store');
         Route::delete('uploads/party-photo', [PartyPhotoUploadController::class, 'destroy'])->name('uploads.party-photo.destroy');
     });
