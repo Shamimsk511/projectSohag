@@ -69,6 +69,14 @@ class Party extends Model
     }
 
     /**
+     * @return HasMany<Account, $this>
+     */
+    public function accounts(): HasMany
+    {
+        return $this->hasMany(Account::class);
+    }
+
+    /**
      * Assignment history, newest first.
      *
      * @return HasMany<PartyAssignment, $this>

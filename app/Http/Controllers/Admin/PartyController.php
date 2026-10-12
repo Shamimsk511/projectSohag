@@ -76,7 +76,7 @@ class PartyController extends Controller
     {
         Gate::authorize('view', $party);
 
-        $party->load(['area', 'assignments.fieldOfficer', 'assignments.assignedBy']);
+        $party->load(['area', 'assignments.fieldOfficer', 'assignments.assignedBy', 'accounts' => fn ($accounts) => $accounts->orderBy('closed_at')->orderBy('id')]);
 
         return view('admin.parties.show', [
             'party' => $party,

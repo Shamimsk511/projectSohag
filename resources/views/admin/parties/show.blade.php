@@ -80,8 +80,30 @@
         <div class="col-lg-4">
             @include('admin.parties._assignment')
             <div class="card mb-3">
-                <div class="card-header"><h3 class="card-title mb-0">{{ __('app.parties.accounts') }}</h3></div>
-                <div class="card-body text-body-secondary">{{ __('app.parties.no_accounts') }}</div>
+                <div class="card-header d-flex align-items-center">
+                    <h3 class="card-title mb-0">{{ __('app.parties.accounts') }}</h3>
+                    @if ($party->isActive())
+                        @can('create', \App\Models\Account::class)
+                            <a href="{{ route('admin.parties.accounts.create', $party) }}" class="btn btn-sm btn-primary ms-auto">
+                                <i class="bi bi-plus-lg" aria-hidden="true"></i> {{ __('app.accounts.open') }}
+                            </a>
+                        @endcan
+                    @endif
+                </div>
+                <div class="list-group list-group-flush">
+                    @forelse ($party->accounts as $account)
+                        <a href="{{ route('admin.accounts.show', $account) }}" class="list-group-item list-group-item-action d-flex align-items-center gap-2 py-3">
+                            <span class="fw-semibold">{{ $account->account_number }}</span>
+                            <span class="badge text-bg-info">{{ __('app.accounts.types.'.$account->account_type->value) }}</span>
+                            @unless ($account->isActive())
+                                <span class="badge text-bg-secondary">{{ __('app.accounts.closed') }}</span>
+                            @endunless
+                            <i class="bi bi-chevron-right ms-auto text-body-secondary" aria-hidden="true"></i>
+                        </a>
+                    @empty
+                        <div class="list-group-item text-body-secondary">{{ __('app.parties.no_accounts') }}</div>
+                    @endforelse
+                </div>
             </div>
         </div>
     </div>
