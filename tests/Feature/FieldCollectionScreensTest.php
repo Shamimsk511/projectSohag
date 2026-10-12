@@ -56,6 +56,40 @@ class FieldCollectionScreensTest extends TestCase
             ->assertSeeInOrder(['৭০০.০০', '২০০.০০', '৫০০.০০']);
     }
 
+    public function test_day_list_embeds_an_offline_snapshot_of_the_officers_own_rows(): void
+    {
+        $mine = $this->schedule(Account::factory()->loan()->create(), '500');
+        $this->collect($mine, '200');
+        $missed = $this->schedule(Account::factory()->create(), '100', ['due_date' => '2026-10-10', 'status' => ScheduleStatus::Missed]);
+        $other = CollectionSchedule::factory()->create([
+            'field_officer_id' => User::factory()->withRole(Role::FieldOfficer)->create()->id,
+        ]);
+
+        $html = $this->actingAs($this->officer)->get(route('field.home'))->assertOk()->getContent();
+        $this->assertIsString($html);
+        $this->assertSame(1, preg_match('#<script type="application/json" id="field-today">(.*?)</script>#s', $html, $match));
+        $snapshot = json_decode($match[1], true, flags: JSON_THROW_ON_ERROR);
+
+        $this->assertSame($this->officer->id, $snapshot['user_id']);
+        $this->assertSame('2026-10-12', $snapshot['date']);
+        $this->assertFalse($snapshot['today_closed']);
+        $this->assertSame(Money::fromTaka('500')->format(), $snapshot['summary']['expected']);
+        $this->assertSame([$mine->id, $missed->id], array_column($snapshot['rows'], 'schedule_id'));
+        $this->assertNotContains($other->id, array_column($snapshot['rows'], 'schedule_id'));
+
+        [$today, $earlier] = $snapshot['rows'];
+        $this->assertSame($mine->account_id, $today['account_id']);
+        $this->assertSame($mine->party->name, $today['party_name']);
+        $this->assertSame($mine->account->account_number, $today['account_number']);
+        $this->assertFalse($today['earlier']);
+        $this->assertTrue($today['collectable']);
+        $this->assertSame(ScheduleStatus::PartiallyPaid->value, $today['status']);
+        $this->assertSame(['poisha' => 20000, 'label' => Money::fromTaka('200')->format()], $today['collected']);
+        $this->assertSame(30000, $today['remaining']['poisha']);
+        $this->assertTrue($earlier['earlier']);
+        $this->assertSame('2026-10-10', $earlier['due_date']);
+    }
+
     public function test_collect_page_shows_due_and_a_fresh_client_uuid(): void
     {
         $schedule = $this->schedule(Account::factory()->loan('10000')->create(), '500');
@@ -66,7 +100,9 @@ class FieldCollectionScreensTest extends TestCase
             ->assertSee($schedule->party->name)
             ->assertSee('৯,৮০০.০০')
             ->assertSee('data-full-due="300.00"', false)
-            ->assertSee('name="client_uuid"', false);
+            ->assertSee('name="client_uuid"', false)
+            ->assertSee('js-queue-collect', false)
+            ->assertSee('data-schedule-id="'.$schedule->id.'"', false);
     }
 
     public function test_officer_records_a_collection_once_per_client_uuid(): void

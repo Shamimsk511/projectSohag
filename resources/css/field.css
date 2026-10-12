@@ -10,3 +10,26 @@
 .form-select {
     min-height: 48px;
 }
+
+/* Printable sheets (admin schedule sheet): room to write by hand, full page width. */
+.schedule-sheet .sheet-blank {
+    min-width: 7rem;
+}
+
+@media print {
+    .container {
+        max-width: none;
+    }
+
+    .schedule-sheet {
+        font-size: 11pt;
+    }
+
+    .schedule-sheet thead {
+        display: table-header-group;
+    }
+
+    .schedule-sheet tr {
+        break-inside: avoid;
+    }
+}

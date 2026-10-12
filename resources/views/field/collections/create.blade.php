@@ -24,7 +24,11 @@
         <dd class="col-5 text-end fw-semibold mb-0">{{ $accountRemaining->format() }}</dd>
     </dl>
 
-    <form method="POST" action="{{ route('field.collections.store', $schedule) }}" class="js-confirm" data-confirm="{{ __('app.field.confirm') }}">
+    {{-- .js-queue-collect: field.js sends it through the offline queue (docs/PWA.md); plain POST without JS. --}}
+    <div class="alert alert-danger d-none" role="alert" data-queue-error></div>
+    <form method="POST" action="{{ route('field.collections.store', $schedule) }}" class="js-confirm js-queue-collect" data-confirm="{{ __('app.field.confirm') }}"
+          data-schedule-id="{{ $schedule->id }}" data-account-id="{{ $schedule->account_id }}"
+          data-party-name="{{ $schedule->party->name }}" data-account-number="{{ $schedule->account->account_number }}">
         @csrf
         <input type="hidden" name="client_uuid" value="{{ old('client_uuid', $clientUuid) }}">
 

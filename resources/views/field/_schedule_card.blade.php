@@ -7,7 +7,7 @@
         default => 'text-bg-secondary',
     };
 @endphp
-<div class="card mb-2">
+<div class="card mb-2" data-schedule-card="{{ $schedule->id }}">
     <div class="card-body">
         <div class="d-flex justify-content-between align-items-start gap-2">
             <div>
@@ -26,6 +26,7 @@
                 {{ __('app.field.expected') }}: <span class="fw-semibold">{{ $schedule->expected_amount->format() }}</span><br>
                 {{ __('app.field.collected') }}: <span class="fw-semibold">{{ $collected[$schedule->id]->format() }}</span><br>
                 {{ __('app.field.remaining') }}: <span class="fw-semibold">{{ $remaining[$schedule->id]->format() }}</span>
+                <div class="fw-semibold text-warning-emphasis d-none" data-unsynced></div>
             </div>
             @if ($schedule->status->isCollectable())
                 <a href="{{ route('field.collections.create', $schedule) }}" class="btn btn-primary btn-lg">

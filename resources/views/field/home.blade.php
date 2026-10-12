@@ -11,6 +11,8 @@
         <div class="alert alert-warning" role="status">{{ __('app.closings.today_closed') }}</div>
     @endif
 
+    @include('field._queue_status', ['syncButton' => true, 'detailsLink' => true])
+
     <h1 class="h4 mb-3">{{ __('app.today') }}</h1>
 
     <div class="card mb-3">
@@ -49,4 +51,7 @@
             @include('field._schedule_card', ['showDate' => true])
         @endforeach
     @endif
+
+    {{-- Saved to IndexedDB by field.js; the offline page shows it when there is no connection. --}}
+    <script type="application/json" id="field-today">@json($snapshot)</script>
 @endsection

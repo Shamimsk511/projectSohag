@@ -15,6 +15,7 @@ use App\Models\CollectionSchedule;
 use App\Models\User;
 use App\Services\CollectionService;
 use App\Support\Money;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\View\View;
@@ -27,12 +28,7 @@ class ScheduleController extends Controller
     {
         $day = $request->day();
         $officer = $request->officer();
-
-        $query = CollectionSchedule::query()
-            ->dueOn($day)
-            ->when($officer === ScheduleIndexRequest::UNASSIGNED, fn ($query) => $query->whereNull('field_officer_id'))
-            ->when(is_int($officer), fn ($query) => $query->where('field_officer_id', $officer))
-            ->when($request->status(), fn ($query, ScheduleStatus $status) => $query->where('status', $status));
+        $query = $this->filtered($request);
 
         return view('admin.schedules.index', [
             'schedules' => (clone $query)->with(['party', 'account', 'fieldOfficer'])
@@ -45,6 +41,29 @@ class ScheduleController extends Controller
             'activeOfficers' => User::query()->activeFieldOfficers()->orderBy('name')->get(['id', 'name']),
             'canManage' => Gate::allows('create', CollectionSchedule::class),
             'isPast' => $day->toDateString() < today(config('app.display_timezone'))->toDateString(),
+        ]);
+    }
+
+    /**
+     * Printable day sheet: every row matching the list filters, no paging, with blank columns to fill by hand.
+     */
+    public function print(ScheduleIndexRequest $request): View
+    {
+        $officer = $request->officer();
+        $schedules = $this->filtered($request)->with(['party.area', 'account', 'fieldOfficer'])
+            ->orderBy('field_officer_id')->orderBy('party_id')->get();
+
+        return view('admin.schedules.print', [
+            'schedules' => $schedules,
+            'total' => $schedules->map->expected_amount->reduce(fn (Money $sum, Money $amount): Money => $sum->plus($amount), Money::zero()),
+            'day' => $request->day(),
+            'officerName' => match (true) {
+                $officer === ScheduleIndexRequest::UNASSIGNED => __('app.schedules.unassigned'),
+                is_int($officer) => User::query()->whereKey($officer)->value('name'),
+                default => __('app.schedules.all'),
+            },
+            'status' => $request->status(),
+            'showOfficer' => ! is_int($officer),
         ]);
     }
 
@@ -84,5 +103,19 @@ class ScheduleController extends Controller
             'date' => $request->day()->toDateString(),
             'officer' => $request->toOfficer()->id,
         ])->with('status', __('app.schedules.reassigned', ['count' => $moved]));
+    }
+
+    /**
+     * @return Builder<CollectionSchedule>
+     */
+    private function filtered(ScheduleIndexRequest $request): Builder
+    {
+        $officer = $request->officer();
+
+        return CollectionSchedule::query()
+            ->dueOn($request->day())
+            ->when($officer === ScheduleIndexRequest::UNASSIGNED, fn ($query) => $query->whereNull('field_officer_id'))
+            ->when(is_int($officer), fn ($query) => $query->where('field_officer_id', $officer))
+            ->when($request->status(), fn ($query, ScheduleStatus $status) => $query->where('status', $status));
     }
 }

@@ -154,4 +154,18 @@ class PartyPhotoTest extends TestCase
             ->post(route('admin.uploads.party-photo.store'), ['photo' => UploadedFile::fake()->image('me.png')])
             ->assertForbidden();
     }
+
+    public function test_prune_command_deletes_only_old_temporary_photos(): void
+    {
+        Storage::disk('local')->put('tmp/party-photos/old.jpg', 'x');
+        Storage::disk('local')->put('tmp/party-photos/new.jpg', 'x');
+        Storage::disk('local')->put('parties/kept.jpg', 'x');
+        touch(Storage::disk('local')->path('tmp/party-photos/old.jpg'), now()->subHours(25)->getTimestamp());
+
+        $this->artisan('photos:prune-temp')->expectsOutput('1 temporary photo(s) deleted.')->assertSuccessful();
+
+        Storage::disk('local')->assertMissing('tmp/party-photos/old.jpg');
+        Storage::disk('local')->assertExists('tmp/party-photos/new.jpg');
+        Storage::disk('local')->assertExists('parties/kept.jpg');
+    }
 }

@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\Permission;
 use App\Enums\ScheduleStatus;
 use App\Enums\TransactionType;
+use App\Exceptions\LedgerRuleViolation;
 use App\Models\Account;
 use App\Models\CollectionSchedule;
 use App\Models\DailyClosing;
@@ -14,7 +15,6 @@ use App\Support\TransactionData;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\ValidationException;
 
 /**
  * Only writer of transactions. Enforces the money movement rules of docs/DOMAIN_RULES.md; rule
@@ -255,6 +255,6 @@ class TransactionService
 
     private function reject(string $field, string $key): never
     {
-        throw ValidationException::withMessages([$field => __('app.transactions.'.$key)]);
+        throw LedgerRuleViolation::of($field, $key);
     }
 }

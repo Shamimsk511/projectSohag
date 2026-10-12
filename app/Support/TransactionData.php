@@ -27,4 +27,30 @@ final readonly class TransactionData
         public ?string $overrideReason = null,
         public ?CollectionSchedule $schedule = null,
     ) {}
+
+    /**
+     * A field officer's collection on a schedule row (web form and PWA sync): the account's collection
+     * type, attributed to the officer.
+     */
+    public static function forCollection(
+        CollectionSchedule $schedule,
+        Money $amount,
+        Carbon $date,
+        PaymentMethod $paymentMethod,
+        ?string $description,
+        string $clientUuid,
+        User $officer,
+    ): self {
+        return new self(
+            type: $schedule->account->account_type->collectionType(),
+            amount: $amount,
+            date: $date,
+            account: $schedule->account,
+            paymentMethod: $paymentMethod,
+            description: $description,
+            clientUuid: strtolower($clientUuid),
+            fieldOfficer: $officer,
+            schedule: $schedule,
+        );
+    }
 }

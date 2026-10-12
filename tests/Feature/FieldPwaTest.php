@@ -52,6 +52,37 @@ class FieldPwaTest extends TestCase
         }
     }
 
+    public function test_signed_in_pages_carry_the_user_id_for_the_offline_queue(): void
+    {
+        $this->withoutVite();
+        $officer = User::factory()->withRole(Role::FieldOfficer)->create();
+
+        $html = (string) $this->actingAs($officer)->get('/field')->assertOk()
+            ->assertSee('data-user-id="'.$officer->id.'"', false)
+            ->getContent();
+
+        $this->assertSame(1, preg_match('#<script type="application/json" id="field-strings">(.*?)</script>#s', $html, $match));
+        $this->assertSame(__('app.queue'), json_decode($match[1], true, flags: JSON_THROW_ON_ERROR));
+    }
+
+    public function test_sync_status_page_is_a_signed_in_field_page_rendered_from_the_queue(): void
+    {
+        $this->withoutVite();
+
+        $this->get(route('field.sync'))->assertRedirect(route('login'));
+        $this->actingAs(User::factory()->withRole(Role::Manager)->create())->get(route('field.sync'))->assertForbidden();
+
+        $officer = User::factory()->withRole(Role::FieldOfficer)->create();
+        $this->actingAs($officer)->get(route('field.sync'))
+            ->assertOk()
+            ->assertSee(__('app.queue.title'))
+            ->assertSee('data-user-id="'.$officer->id.'"', false)
+            ->assertSee('data-sync-page', false)
+            ->assertSee('<template id="queue-item">', false)
+            ->assertSee('js-sync-now', false);
+        $this->actingAs($officer)->get(route('field.home'))->assertSee(route('field.sync'));
+    }
+
     public function test_service_worker_is_not_registered_while_vite_runs_hot(): void
     {
         $hotFile = tempnam(sys_get_temp_dir(), 'vite-hot');
@@ -75,6 +106,12 @@ class FieldPwaTest extends TestCase
         $this->get('/field/offline')
             ->assertOk()
             ->assertSee(__('app.field.offline_title'))
+            ->assertSee('data-offline-today', false)
+            ->assertSee('<template id="offline-row">', false)
+            ->assertSee('data-offline-collect', false)
+            ->assertSee('data-offline-receipt', false)
+            ->assertSee('id="field-strings"', false)
+            ->assertDontSee('data-user-id', false)
             ->assertDontSee(route('logout'), false);
 
         $this->actingAs(User::factory()->withRole(Role::FieldOfficer)->create())

@@ -57,11 +57,30 @@ class ScheduleScreensTest extends TestCase
             ->assertSee($tomorrow->account->account_number);
     }
 
+    public function test_print_sheet_lists_every_filtered_row_without_paging(): void
+    {
+        $rows = CollectionSchedule::factory()->count(101)->create(['field_officer_id' => $this->officer->id, 'due_date' => '2026-10-12']);
+        $other = CollectionSchedule::factory()->create(['due_date' => '2026-10-12']);
+
+        $this->actingAs($this->accountant)->get(route('admin.schedules.index', ['officer' => $this->officer->id]))
+            ->assertOk()
+            ->assertSee(route('admin.schedules.print', ['date' => '2026-10-12', 'officer' => $this->officer->id]));
+
+        $this->actingAs($this->accountant)->get(route('admin.schedules.print', ['officer' => $this->officer->id]))
+            ->assertOk()
+            ->assertSee('js-print', false)
+            ->assertSee('Rahim Officer')
+            ->assertSee($rows->first()->account->account_number)
+            ->assertSee($rows->last()->account->account_number)
+            ->assertDontSee($other->account->account_number);
+    }
+
     public function test_field_officer_cannot_open_office_schedule_screens(): void
     {
         $schedule = CollectionSchedule::factory()->create();
 
         $this->actingAs($this->officer)->get(route('admin.schedules.index'))->assertForbidden();
+        $this->actingAs($this->officer)->get(route('admin.schedules.print'))->assertForbidden();
         $this->actingAs($this->accountant)->get(route('admin.schedules.edit', $schedule))->assertForbidden();
         $this->actingAs($this->accountant)->put(route('admin.schedules.update', $schedule), [
             'due_date' => '2026-10-14', 'expected_amount' => '50',

@@ -31,7 +31,7 @@ Indexes: transactions(transaction_date), (account_id, transaction_date), (field_
 - Models in app/Models, Policies in app/Policies, Form Requests in app/Http/Requests.
 - Admin web UI: routes/web.php, prefix `/admin`, AdminLTE layout.
 - Field officer PWA: routes under `/field`, own minimal mobile layout (not AdminLTE sidebar).
-- JSON endpoints for PWA sync: routes/api.php under `/api/field`, session-cookie auth (same-origin, Sanctum SPA mode) so no token handling on devices.
+- JSON endpoints for PWA sync: paths under `/api/field` but defined in routes/web.php (web middleware: session cookie + CSRF header), so no Sanctum and no token handling on devices. Protocol in docs/PWA.md.
 - Scheduled commands: generate tomorrow's schedules, mark yesterday's unpaid as missed, daily summary.
 
 ## Testing
@@ -42,3 +42,10 @@ Indexes: transactions(transaction_date), (account_id, transaction_date), (field_
 ## Libraries wiring
 Bundle only what a page needs via Vite entry points per area (admin, field) to keep the field PWA light: the field entry must not import DataTables, ApexCharts, pdfmake or jQuery.
 Single source: npm packages bundled by Vite (decided 2026-10-11). No CDN links, no `config/adminlte.php` plugins. Admin layout uses `laravel_asset_bundling = vite_js_only` with entry `resources/js/admin.js`; `public/vendor/` keeps only `adminlte/dist/assets` (logo images).
+
+## Security baseline (reviewed 2026-10-13)
+- Authz: roles + policies, enforced by `PermissionMatrixTest` (every route x role). Mass assignment: every model uses `#[Fillable]`; writers take `validated()` only. Raw SQL limited to constant `selectRaw` aggregates.
+- Uploads: party photo only; `mimes:jpeg,png,webp`, size and dimension caps, re-encoded by GD (no EXIF, no original bytes kept), private disk, temp tokens bound to the session, served after a policy check.
+- Headers: `SecurityHeaders` (nosniff, SAMEORIGIN, same-origin referrer, Permissions-Policy, HSTS on HTTPS). No CSP yet (inline admin scripts need a nonce pass first).
+- Throttling: login (`ThrottlesLogins`), sync endpoint 60/min.
+- Production `.env` must have: `APP_ENV=production`, `APP_DEBUG=false`, `APP_URL=https://...`, `SESSION_SECURE_COOKIE=true`, `SESSION_ENCRYPT=true`, `BCRYPT_ROUNDS>=12`, HTTPS only (also required by the service worker).

@@ -15,6 +15,7 @@ use App\Http\Controllers\Admin\ScheduleController;
 use App\Http\Controllers\Admin\TransactionController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Field\CollectionController;
+use App\Http\Controllers\Field\CollectionSyncController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\ReceiptController;
 use Illuminate\Support\Facades\Auth;
@@ -43,6 +44,7 @@ Route::middleware(['auth', RoleMiddleware::using(Role::names(Role::office()))])
         Route::post('accounts/{account}/close', [AccountController::class, 'close'])->name('accounts.close');
         Route::put('accounts/{account}/collection-plan', [CollectionPlanController::class, 'update'])->name('accounts.collection-plan.update');
         Route::post('accounts/{account}/schedules', [ScheduleController::class, 'store'])->name('accounts.schedules.store');
+        Route::get('schedules/print', [ScheduleController::class, 'print'])->name('schedules.print');
         Route::post('schedules/reassign', [ScheduleController::class, 'reassign'])->name('schedules.reassign');
         Route::post('schedules/{schedule}/cancel', [ScheduleController::class, 'cancel'])->name('schedules.cancel');
         Route::resource('schedules', ScheduleController::class)->only(['index', 'edit', 'update']);
@@ -67,4 +69,12 @@ Route::middleware(['auth', RoleMiddleware::using(Role::names([Role::FieldOfficer
         Route::get('schedules/{schedule}/collect', [CollectionController::class, 'create'])->name('collections.create');
         Route::post('schedules/{schedule}/collections', [CollectionController::class, 'store'])->name('collections.store');
         Route::get('receipts/{transaction}', [ReceiptController::class, 'show'])->name('receipts.show');
+        // Filled by field.js from this phone's offline queue (IndexedDB); the server has nothing to add.
+        Route::view('sync', 'field.sync')->name('sync');
+    });
+
+// PWA sync: JSON under /api/field but on the web stack (session cookie + CSRF header), see docs/PWA.md.
+Route::middleware(['auth', RoleMiddleware::using(Role::names([Role::FieldOfficer, Role::Admin]))])
+    ->prefix('api/field')->name('field.api.')->group(function () {
+        Route::post('collections/sync', CollectionSyncController::class)->middleware('throttle:60,1')->name('collections.sync');
     });

@@ -4,6 +4,7 @@ namespace App\Http\Requests\Field;
 
 use App\Enums\PaymentMethod;
 use App\Models\CollectionSchedule;
+use App\Models\User;
 use App\Rules\TakaAmount;
 use App\Support\Money;
 use App\Support\TransactionData;
@@ -51,19 +52,17 @@ class StoreCollectionRequest extends FormRequest
      */
     public function transactionData(): TransactionData
     {
-        $schedule = $this->schedule();
-        $account = $schedule->account;
+        /** @var User $officer */
+        $officer = $this->user();
 
-        return new TransactionData(
-            type: $account->account_type->collectionType(),
+        return TransactionData::forCollection(
+            schedule: $this->schedule(),
             amount: Money::fromTaka($this->string('amount')->value()),
             date: today(config('app.display_timezone')),
-            account: $account,
             paymentMethod: PaymentMethod::from($this->string('payment_method')->value()),
             description: $this->validated('description'),
-            clientUuid: $this->string('client_uuid')->lower()->value(),
-            fieldOfficer: $this->user(),
-            schedule: $schedule,
+            clientUuid: $this->string('client_uuid')->value(),
+            officer: $officer,
         );
     }
 

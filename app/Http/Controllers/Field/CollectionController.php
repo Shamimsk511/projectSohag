@@ -10,6 +10,7 @@ use App\Models\DailyClosing;
 use App\Services\LedgerService;
 use App\Services\TransactionService;
 use App\Support\Money;
+use App\Support\Numerals;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Str;
@@ -55,17 +56,58 @@ class CollectionController extends Controller
         ])->all();
 
         $sum = fn (Money $total, Money $amount): Money => $total->plus($amount);
+        $expectedTotal = $schedules->map->expected_amount->reduce($sum, Money::zero());
+        $collectedTotal = $schedules->map(fn (CollectionSchedule $schedule): Money => $collected[$schedule->id])->reduce($sum, Money::zero());
+        $remainingTotal = $schedules->map(fn (CollectionSchedule $schedule): Money => $remaining[$schedule->id])->reduce($sum, Money::zero());
+        $cashInHand = $this->ledger->cashInHand([$this->actor()->id])[$this->actor()->id];
+        $todayClosed = DailyClosing::isClosed($today);
+
+        // Same rows and figures as the page, formatted on the server, for the offline list (field.js -> IndexedDB).
+        $money = fn (Money $amount): array => ['poisha' => $amount->poisha, 'label' => $amount->format()];
+        $snapshot = [
+            'user_id' => $this->actor()->id,
+            'date' => $today->toDateString(),
+            'generated_label' => Numerals::localize(now(config('app.display_timezone'))->format('d/m/Y H:i')),
+            'today_closed' => $todayClosed,
+            'summary' => [
+                'visits' => __('app.field.visits', ['count' => Numerals::localize((string) $schedules->count())]),
+                'expected' => $expectedTotal->format(),
+                'collected' => $collectedTotal->format(),
+                'remaining' => $remainingTotal->format(),
+                'cash_in_hand' => $cashInHand->format(),
+            ],
+            'rows' => $rows->map(fn (CollectionSchedule $schedule): array => [
+                'schedule_id' => $schedule->id,
+                'account_id' => $schedule->account_id,
+                'party_id' => $schedule->party_id,
+                'party_name' => $schedule->party->name,
+                'party_code' => $schedule->party->party_code,
+                'party_phone' => $schedule->party->phone,
+                'area' => $schedule->party->area->name,
+                'account_number' => $schedule->account->account_number,
+                'due_date' => $schedule->due_date->toDateString(),
+                'due_date_label' => Numerals::localize($schedule->due_date->format('d/m/Y')),
+                'status' => $schedule->status->value,
+                'status_label' => __('app.schedules.statuses.'.$schedule->status->value),
+                'collectable' => $schedule->status->isCollectable(),
+                'earlier' => $schedule->due_date->toDateString() < $today->toDateString(),
+                'expected' => $money($schedule->expected_amount),
+                'collected' => $money($collected[$schedule->id]),
+                'remaining' => $money($remaining[$schedule->id]),
+            ])->values()->all(),
+        ];
 
         return view('field.home', [
             'schedules' => $schedules,
             'earlier' => $earlier,
             'collected' => $collected,
             'remaining' => $remaining,
-            'expectedTotal' => $schedules->map->expected_amount->reduce($sum, Money::zero()),
-            'collectedTotal' => $schedules->map(fn (CollectionSchedule $schedule): Money => $collected[$schedule->id])->reduce($sum, Money::zero()),
-            'remainingTotal' => $schedules->map(fn (CollectionSchedule $schedule): Money => $remaining[$schedule->id])->reduce($sum, Money::zero()),
-            'cashInHand' => $this->ledger->cashInHand([$this->actor()->id])[$this->actor()->id],
-            'todayClosed' => DailyClosing::isClosed($today),
+            'expectedTotal' => $expectedTotal,
+            'collectedTotal' => $collectedTotal,
+            'remainingTotal' => $remainingTotal,
+            'cashInHand' => $cashInHand,
+            'todayClosed' => $todayClosed,
+            'snapshot' => $snapshot,
         ]);
     }
 

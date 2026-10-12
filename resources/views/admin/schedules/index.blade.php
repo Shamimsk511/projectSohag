@@ -46,11 +46,17 @@
     <div class="row">
         <div @class(['col-lg-8' => $canManage && $officer !== null && ! $isPast, 'col-12' => ! ($canManage && $officer !== null && ! $isPast)])>
             <div class="card">
-                <div class="card-header">
-                    {{ __('app.schedules.row_count', [
-                        'count' => \App\Support\Numerals::localize((string) $schedules->total()),
-                        'amount' => $total->format(),
-                    ]) }}
+                <div class="card-header d-flex justify-content-between align-items-center gap-2">
+                    <span>
+                        {{ __('app.schedules.row_count', [
+                            'count' => \App\Support\Numerals::localize((string) $schedules->total()),
+                            'amount' => $total->format(),
+                        ]) }}
+                    </span>
+                    <a href="{{ route('admin.schedules.print', array_filter(['date' => $day->toDateString(), 'officer' => $officer, 'status' => $status?->value])) }}"
+                       target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary">
+                        <i class="bi bi-printer" aria-hidden="true"></i> {{ __('app.schedules.print') }}
+                    </a>
                 </div>
                 <div class="card-body p-0 table-responsive">
                     <table class="table table-hover align-middle mb-0">

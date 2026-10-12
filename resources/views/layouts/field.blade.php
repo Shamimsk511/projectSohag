@@ -14,11 +14,14 @@
     @vite('resources/js/field.js')
 </head>
 {{-- Service worker only for built assets: the manifest hash versions its cache; never under the Vite dev server. --}}
-<body class="bg-body-tertiary" @if (! Vite::isRunningHot() && $swVersion = Vite::manifestHash()) data-sw="/field-sw.js?v={{ $swVersion }}" @endif>
+{{-- data-user-id: live signed-in page, so field.js may sync the offline queue (never on the cached, sessionless pages). --}}
+<body class="bg-body-tertiary" @if (! Vite::isRunningHot() && $swVersion = Vite::manifestHash()) data-sw="/field-sw.js?v={{ $swVersion }}" @endif
+    @auth @sectionMissing('hide_logout') data-user-id="{{ auth()->id() }}" @endif @endauth>
     <header class="navbar bg-body border-bottom px-3 d-print-none">
         <span class="navbar-brand mb-0 h1">{{ config('app.name') }}</span>
         @sectionMissing('hide_logout')
-            <form method="POST" action="{{ route('logout') }}">
+            {{-- .js-logout: field.js clears the offline list before signing out. --}}
+            <form method="POST" action="{{ route('logout') }}" class="js-logout">
                 @csrf
                 <button type="submit" class="btn btn-outline-secondary btn-lg">
                     <i class="bi bi-box-arrow-right" aria-hidden="true"></i>
@@ -30,5 +33,6 @@
     <main class="container py-3">
         @yield('content')
     </main>
+    <script type="application/json" id="field-strings">@json(__('app.queue'))</script>
 </body>
 </html>

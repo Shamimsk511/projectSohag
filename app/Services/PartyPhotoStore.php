@@ -59,6 +59,24 @@ class PartyPhotoStore
         return $path;
     }
 
+    /**
+     * Delete parked uploads older than the given age (abandoned forms); returns how many.
+     */
+    public function pruneTemporary(int $olderThanHours): int
+    {
+        $cutoff = now()->subHours($olderThanHours)->getTimestamp();
+        $pruned = 0;
+
+        foreach ($this->disk()->files(self::TEMP_DIR) as $path) {
+            if ($this->disk()->lastModified($path) < $cutoff) {
+                $this->disk()->delete($path);
+                $pruned++;
+            }
+        }
+
+        return $pruned;
+    }
+
     public function delete(?string $path): void
     {
         if ($path !== null) {

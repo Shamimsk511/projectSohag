@@ -10,3 +10,4 @@ Artisan::command('inspire', function () {
 
 Schedule::command('schedules:generate')->dailyAt('18:07')->timezone(config('app.display_timezone'))->withoutOverlapping();
 Schedule::command('schedules:mark-missed')->dailyAt('00:17')->timezone(config('app.display_timezone'))->withoutOverlapping();
+Schedule::command('photos:prune-temp')->dailyAt('03:27')->timezone(config('app.display_timezone'))->withoutOverlapping();
