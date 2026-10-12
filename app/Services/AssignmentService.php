@@ -13,6 +13,8 @@ use Illuminate\Support\Facades\DB;
  */
 class AssignmentService
 {
+    public function __construct(private readonly AuditLogger $audit) {}
+
     /**
      * Make $officer responsible for $party from today, ending any current assignment.
      * Assigning the officer who already holds the party changes nothing.
@@ -28,12 +30,16 @@ class AssignmentService
 
             $this->close($current, $actor);
 
-            return PartyAssignment::create([
+            $assignment = PartyAssignment::create([
                 'party_id' => $party->id,
                 'field_officer_id' => $officer->id,
                 'assigned_from' => $this->today(),
                 'assigned_by' => $actor->id,
             ]);
+
+            $this->audit->created('assignment.assigned', $assignment, $actor);
+
+            return $assignment;
         });
     }
 
@@ -59,7 +65,12 @@ class AssignmentService
 
     private function close(?PartyAssignment $assignment, User $actor): void
     {
-        $assignment?->update(['assigned_until' => $this->today(), 'ended_by' => $actor->id]);
+        if ($assignment === null) {
+            return;
+        }
+
+        $assignment->update(['assigned_until' => $this->today(), 'ended_by' => $actor->id]);
+        $this->audit->updated('assignment.ended', $assignment, $actor);
     }
 
     private function today(): string

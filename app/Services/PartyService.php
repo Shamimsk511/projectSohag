@@ -3,26 +3,31 @@
 namespace App\Services;
 
 use App\Models\Party;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Throwable;
 
 class PartyService
 {
-    public function __construct(private readonly PartyPhotoStore $photos) {}
+    public function __construct(
+        private readonly PartyPhotoStore $photos,
+        private readonly AuditLogger $audit,
+    ) {}
 
     /**
      * Create a party, give it its P-00001 code and attach the uploaded photo if any.
      *
      * @param  array<string, mixed>  $attributes
      */
-    public function create(array $attributes, ?string $photoToken): Party
+    public function create(array $attributes, ?string $photoToken, User $actor): Party
     {
         $photoPath = $photoToken === null ? null : $this->photos->claim($photoToken);
 
         try {
-            return DB::transaction(function () use ($attributes, $photoPath): Party {
+            return DB::transaction(function () use ($attributes, $photoPath, $actor): Party {
                 $party = Party::create([...$attributes, 'photo_path' => $photoPath]);
                 $party->forceFill(['party_code' => Party::codeFor($party->id)])->save();
+                $this->audit->created('party.created', $party, $actor);
 
                 return $party;
             });
@@ -38,7 +43,7 @@ class PartyService
      *
      * @param  array<string, mixed>  $attributes
      */
-    public function update(Party $party, array $attributes, ?string $photoToken): Party
+    public function update(Party $party, array $attributes, ?string $photoToken, User $actor): Party
     {
         $oldPhoto = $party->photo_path;
 
@@ -47,7 +52,10 @@ class PartyService
         }
 
         try {
-            $party->update($attributes);
+            DB::transaction(function () use ($party, $attributes, $actor): void {
+                $party->update($attributes);
+                $this->audit->updated('party.updated', $party, $actor);
+            });
         } catch (Throwable $e) {
             $this->photos->delete($photoToken === null ? null : $attributes['photo_path']);
 

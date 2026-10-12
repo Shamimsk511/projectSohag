@@ -10,7 +10,6 @@ use App\Http\Requests\Admin\CloseAccountRequest;
 use App\Http\Requests\Admin\StoreAccountRequest;
 use App\Models\Account;
 use App\Models\Party;
-use App\Models\User;
 use App\Services\AccountService;
 use App\Services\LedgerService;
 use Illuminate\Http\RedirectResponse;
@@ -77,11 +76,5 @@ class AccountController extends Controller
         $this->accounts->close($account, $request->validated('close_reason'), $this->actor());
 
         return redirect()->route('admin.accounts.show', $account)->with('status', __('app.accounts.closed_message'));
-    }
-
-    private function actor(): User
-    {
-        /** @var User */
-        return auth()->user();
     }
 }

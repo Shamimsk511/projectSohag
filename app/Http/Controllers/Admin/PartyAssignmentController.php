@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\AssignPartyRequest;
 use App\Models\Party;
-use App\Models\User;
 use App\Services\AssignmentService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Gate;
@@ -16,9 +15,7 @@ class PartyAssignmentController extends Controller
 
     public function store(AssignPartyRequest $request, Party $party): RedirectResponse
     {
-        /** @var User $actor */
-        $actor = $request->user();
-        $this->assignments->assign($party, $request->officer(), $actor);
+        $this->assignments->assign($party, $request->officer(), $this->actor());
 
         return redirect()->route('admin.parties.show', $party)->with('status', __('app.assignments.assigned'));
     }
@@ -27,9 +24,7 @@ class PartyAssignmentController extends Controller
     {
         Gate::authorize('assign', $party);
 
-        /** @var User $actor */
-        $actor = auth()->user();
-        $this->assignments->end($party, $actor);
+        $this->assignments->end($party, $this->actor());
 
         return redirect()->route('admin.parties.show', $party)->with('status', __('app.assignments.ended'));
     }

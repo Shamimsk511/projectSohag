@@ -21,6 +21,7 @@ class TransactionService
     public function __construct(
         private readonly LedgerService $ledger,
         private readonly SequenceService $sequences,
+        private readonly AuditLogger $audit,
     ) {}
 
     /**
@@ -76,7 +77,7 @@ class TransactionService
                 $this->reject('reason', 'reversal_exceeds_balance');
             }
 
-            return Transaction::create([
+            $reversal = Transaction::create([
                 'account_id' => $original->account_id,
                 'party_id' => $original->party_id,
                 'field_officer_id' => $original->field_officer_id,
@@ -89,6 +90,10 @@ class TransactionService
                 'reverses_transaction_id' => $original->id,
                 'created_by' => $actor->id,
             ]);
+
+            $this->audit->created('transaction.reversed', $reversal, $actor);
+
+            return $reversal;
         });
     }
 
@@ -140,7 +145,7 @@ class TransactionService
             }
         }
 
-        return Transaction::create([
+        $transaction = Transaction::create([
             'account_id' => $account?->id,
             'party_id' => $account?->party_id,
             'field_officer_id' => $data->fieldOfficer?->id,
@@ -156,6 +161,10 @@ class TransactionService
             'created_by' => $actor->id,
             'approved_by' => $overridden ? $actor->id : null,
         ]);
+
+        $this->audit->created('transaction.recorded', $transaction, $actor);
+
+        return $transaction;
     }
 
     /**

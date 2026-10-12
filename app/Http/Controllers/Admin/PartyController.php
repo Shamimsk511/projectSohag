@@ -67,7 +67,7 @@ class PartyController extends Controller
 
     public function store(StorePartyRequest $request): RedirectResponse
     {
-        $party = $this->parties->create($request->safe()->except('photo'), $this->takePhotoToken($request));
+        $party = $this->parties->create($request->safe()->except('photo'), $this->takePhotoToken($request), $this->actor());
 
         return redirect()->route('admin.parties.show', $party)->with('status', __('app.parties.created'));
     }
@@ -94,7 +94,7 @@ class PartyController extends Controller
 
     public function update(UpdatePartyRequest $request, Party $party): RedirectResponse
     {
-        $this->parties->update($party, $request->safe()->except('photo'), $this->takePhotoToken($request));
+        $this->parties->update($party, $request->safe()->except('photo'), $this->takePhotoToken($request), $this->actor());
 
         return redirect()->route('admin.parties.show', $party)->with('status', __('app.parties.updated'));
     }

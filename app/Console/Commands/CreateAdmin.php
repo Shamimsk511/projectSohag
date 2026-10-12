@@ -46,7 +46,7 @@ class CreateAdmin extends Command
             return self::FAILURE;
         }
 
-        $users->create([...$validator->validated(), 'status' => UserStatus::Active->value], Role::Admin);
+        $users->create([...$validator->validated(), 'status' => UserStatus::Active->value], Role::Admin, null);
         $this->info("Admin {$input['email']} created.");
 
         return self::SUCCESS;

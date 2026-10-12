@@ -34,7 +34,7 @@ class UserController extends Controller
 
     public function store(StoreUserRequest $request): RedirectResponse
     {
-        $this->users->create($request->safe()->except('role'), Role::from($request->validated('role')));
+        $this->users->create($request->safe()->except('role'), Role::from($request->validated('role')), $this->actor());
 
         return redirect()->route('admin.users.index')->with('status', __('app.users.created'));
     }
@@ -48,7 +48,7 @@ class UserController extends Controller
 
     public function update(UpdateUserRequest $request, User $user): RedirectResponse
     {
-        $this->users->update($user, $request->safe()->except('role'), Role::from($request->validated('role')));
+        $this->users->update($user, $request->safe()->except('role'), Role::from($request->validated('role')), $this->actor());
 
         return redirect()->route('admin.users.index')->with('status', __('app.users.updated'));
     }

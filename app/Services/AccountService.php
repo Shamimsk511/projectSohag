@@ -22,6 +22,7 @@ class AccountService
     public function __construct(
         private readonly SequenceService $sequences,
         private readonly LedgerService $ledger,
+        private readonly AuditLogger $audit,
     ) {}
 
     /**
@@ -33,14 +34,20 @@ class AccountService
             throw ValidationException::withMessages(['account_type' => __('app.accounts.party_inactive')]);
         }
 
-        return DB::transaction(fn (): Account => Account::create([
-            'party_id' => $party->id,
-            'account_number' => sprintf('%s-%06d', $type->prefix(), $this->sequences->next('account.'.$type->prefix())),
-            'account_type' => $type,
-            'contract_amount' => $type === AccountType::Loan ? $contractAmount : null,
-            'opened_at' => $openedAt->toDateString(),
-            'created_by' => $actor->id,
-        ]));
+        return DB::transaction(function () use ($party, $type, $contractAmount, $openedAt, $actor): Account {
+            $account = Account::create([
+                'party_id' => $party->id,
+                'account_number' => sprintf('%s-%06d', $type->prefix(), $this->sequences->next('account.'.$type->prefix())),
+                'account_type' => $type,
+                'contract_amount' => $type === AccountType::Loan ? $contractAmount : null,
+                'opened_at' => $openedAt->toDateString(),
+                'created_by' => $actor->id,
+            ]);
+
+            $this->audit->created('account.opened', $account, $actor);
+
+            return $account;
+        });
     }
 
     /**
@@ -61,6 +68,7 @@ class AccountService
             }
 
             $account->update(['contract_amount' => $newAmount]);
+            $this->audit->updated('account.contract_adjusted', $account, $actor, extraAfter: ['reason' => $reason]);
 
             return $account->adjustments()->create([
                 'old_amount' => $oldAmount,
@@ -99,6 +107,7 @@ class AccountService
                 'closed_by' => $actor->id,
                 'close_reason' => $reason,
             ]);
+            $this->audit->updated('account.closed', $account, $actor);
 
             return $account;
         });
