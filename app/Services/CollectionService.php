@@ -9,6 +9,7 @@ use App\Models\CollectionPlan;
 use App\Models\CollectionSchedule;
 use App\Models\Holiday;
 use App\Models\User;
+use App\Support\Installments;
 use App\Support\Money;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Carbon;
@@ -263,12 +264,7 @@ class CollectionService
     public function generateFor(Carbon $date, ?CollectionPlan $only = null): int
     {
         $date = Carbon::parse($date->toDateString());
-        $holidays = Holiday::query()
-            ->where('date', '>=', $date->copy()->subDays(60)->toDateString())
-            ->where('date', '<', $date->copy()->addDay()->toDateString())
-            ->pluck('date')
-            ->map(fn (Carbon $holiday): string => $holiday->toDateString())
-            ->all();
+        $holidays = $this->holidayDates($date->copy()->subDays(60), $date);
 
         if (in_array($date->toDateString(), $holidays, true)) {
             return 0;
@@ -283,7 +279,7 @@ class CollectionService
 
         $created = 0;
         foreach ($plans as $plan) {
-            if ($this->isDue($plan, $date, $holidays) && $this->createRow($plan, $date)) {
+            if ($plan->isDueOn($date, $holidays) && $this->createRow($plan, $date)) {
                 $created++;
             }
         }
@@ -292,26 +288,52 @@ class CollectionService
     }
 
     /**
-     * Daily plans skip holidays. Weekly and monthly plans whose day fell on holidays just before
-     * $date are due on $date instead, so no installment is lost.
+     * The next $count due dates of a plan (saved or a draft) from $from, holidays applied.
      *
-     * @param  list<string>  $holidays
+     * @return list<Carbon>
      */
-    private function isDue(CollectionPlan $plan, Carbon $date, array $holidays): bool
+    public function projectDates(CollectionPlan $plan, Carbon $from, int $count): array
     {
-        if ($plan->frequency === PlanFrequency::Daily) {
-            return $plan->fallsOn($date);
+        $from = Carbon::parse($from->toDateString());
+
+        return $plan->projectedDates($from, $count, $this->holidayDates($from->copy()->subDays(60), null));
+    }
+
+    /**
+     * Installment progress of a loan's plan: rows paid, about how many in all (paid plus what the
+     * outstanding still needs at this installment) and the estimated last date. Estimates only.
+     *
+     * @return array{paid: int, total: int, ends_on: Carbon|null}|null
+     */
+    public function loanProgress(Account $account): ?array
+    {
+        $plan = $account->collectionPlan;
+        if (! $account->isLoan() || $plan === null) {
+            return null;
         }
 
-        $candidate = $date->copy();
-        do {
-            if ($plan->fallsOn($candidate)) {
-                return true;
-            }
-            $candidate->subDay();
-        } while (in_array($candidate->toDateString(), $holidays, true));
+        $outstanding = $this->ledger->loanOutstanding($account);
+        $remaining = $outstanding->isPositive() ? Installments::ofAmount($outstanding, $plan->installment_amount)->count : 0;
+        $dates = $remaining > 0 ? $this->projectDates($plan, $this->today(), $remaining) : [];
+        $paid = $account->schedules()->where('status', ScheduleStatus::Paid)->count();
 
-        return false;
+        return ['paid' => $paid, 'total' => $paid + $remaining, 'ends_on' => $dates === [] ? null : end($dates)];
+    }
+
+    /**
+     * Holiday dates from $from up to $until (open-ended when null).
+     *
+     * @return list<string>
+     */
+    private function holidayDates(Carbon $from, ?Carbon $until): array
+    {
+        return Holiday::query()
+            ->where('date', '>=', $from->toDateString())
+            ->when($until, fn ($query) => $query->where('date', '<', $until->copy()->addDay()->toDateString()))
+            ->pluck('date')
+            ->map(fn (Carbon $holiday): string => $holiday->toDateString())
+            ->values()
+            ->all();
     }
 
     /**

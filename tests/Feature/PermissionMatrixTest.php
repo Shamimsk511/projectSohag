@@ -80,6 +80,7 @@ class PermissionMatrixTest extends TestCase
 
         'admin.parties.accounts.create' => [self::MANAGER],
         'admin.parties.accounts.store' => [self::MANAGER],
+        'admin.loans.preview' => [self::MANAGER],
         'admin.accounts.show' => [self::MANAGER, self::ACCOUNTANT],
         'admin.accounts.statement' => [self::MANAGER, self::ACCOUNTANT],
         'admin.accounts.adjust' => [self::MANAGER],

@@ -4,13 +4,20 @@ namespace App\Http\Requests\Admin;
 
 use App\Enums\AccountType;
 use App\Enums\PaymentMethod;
+use App\Enums\PlanFrequency;
 use App\Models\Account;
+use App\Models\CollectionPlan;
+use App\Models\Party;
+use App\Models\User;
 use App\Rules\TakaAmount;
+use App\Support\CollectionPlanData;
+use App\Support\Installments;
 use App\Support\Money;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class StoreAccountRequest extends FormRequest
 {
@@ -34,6 +41,51 @@ class StoreAccountRequest extends FormRequest
             'received_amount' => ['nullable', new TakaAmount],
             'carried_as_of' => ['required_if:existing_loan,1', 'nullable', 'date_format:Y-m-d', 'before_or_equal:'.today(config('app.display_timezone'))->toDateString()],
             'opened_at' => ['required', 'date_format:Y-m-d', 'before_or_equal:'.today(config('app.display_timezone'))->toDateString()],
+            ...$this->collectionRules(),
+        ];
+    }
+
+    /**
+     * Loan collection section: officer and plan. All optional; no installment means no plan yet.
+     *
+     * @return array<string, ValidationRule|array<mixed>|string>
+     */
+    protected function collectionRules(): array
+    {
+        return [
+            'field_officer_id' => ['nullable', 'integer', Rule::in(User::activeFieldOfficers()->pluck('id')->all())],
+            'frequency' => ['nullable', Rule::enum(PlanFrequency::class)],
+            'installment_amount' => ['nullable', new TakaAmount],
+            'installment_count' => ['nullable', 'integer', 'between:1,1000'],
+            'installment_basis' => ['nullable', Rule::in(['amount', 'count'])],
+            'weekdays' => ['nullable', 'array'],
+            'weekdays.*' => ['integer', 'between:0,6'],
+            'starts_on' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:'.today(config('app.display_timezone'))->toDateString()],
+        ];
+    }
+
+    /**
+     * @return array<int, callable(Validator): void>
+     */
+    public function after(): array
+    {
+        return [
+            function (Validator $validator): void {
+                if ($validator->errors()->isNotEmpty() || $this->accountType() !== AccountType::Loan) {
+                    return;
+                }
+
+                if (($this->filled('installment_amount') || $this->filled('installment_count')) && ! $this->amountToCollect()->isPositive()) {
+                    $validator->errors()->add('installment_amount', __('app.accounts.nothing_to_collect'));
+                }
+
+                /** @var Party $party */
+                $party = $this->route('party');
+                $officerId = $this->integer('field_officer_id');
+                if ($officerId !== 0 && $party->activeAssignment()->value('field_officer_id') !== $officerId && ! $this->user()?->can('assign', $party)) {
+                    $validator->errors()->add('field_officer_id', __('app.accounts.officer_change_forbidden'));
+                }
+            },
         ];
     }
 
@@ -51,6 +103,12 @@ class StoreAccountRequest extends FormRequest
             'received_amount' => __('app.accounts.received_before'),
             'carried_as_of' => __('app.accounts.carried_as_of'),
             'opened_at' => __('app.accounts.opened_at'),
+            'field_officer_id' => __('app.parties.field_officer'),
+            'frequency' => __('app.schedules.frequency'),
+            'installment_amount' => __('app.schedules.installment_amount'),
+            'installment_count' => __('app.accounts.installment_count'),
+            'weekdays' => __('app.schedules.weekdays'),
+            'starts_on' => __('app.accounts.first_collection'),
         ];
     }
 
@@ -103,5 +161,70 @@ class StoreAccountRequest extends FormRequest
     public function openedAt(): Carbon
     {
         return Carbon::createFromFormat('Y-m-d', $this->string('opened_at')->value()) ?: today();
+    }
+
+    public function fieldOfficer(): ?User
+    {
+        return $this->filled('field_officer_id') ? User::findOrFail($this->integer('field_officer_id')) : null;
+    }
+
+    /**
+     * What the plan has to collect: the contract, less what a carried-in loan already received.
+     */
+    public function amountToCollect(): Money
+    {
+        $contract = $this->principalAmount()->plus($this->agreedExtra());
+
+        return $this->isExistingLoan() ? $contract->minus($this->receivedBefore()) : $contract;
+    }
+
+    /**
+     * From the installment or the number of installments, whichever the office typed last
+     * (`installment_basis`, set by the form script; without it the installment wins). Null = no plan.
+     */
+    public function installments(): ?Installments
+    {
+        $total = $this->amountToCollect();
+        if (! $total->isPositive()) {
+            return null;
+        }
+
+        if ($this->filled('installment_count') && ($this->input('installment_basis') === 'count' || ! $this->filled('installment_amount'))) {
+            return Installments::ofCount($total, $this->integer('installment_count'));
+        }
+
+        $installment = $this->filled('installment_amount') ? Money::fromTaka($this->string('installment_amount')->value()) : null;
+
+        return $installment?->isPositive() ? Installments::ofAmount($total, $installment) : null;
+    }
+
+    public function collectionPlan(): ?CollectionPlanData
+    {
+        $installments = $this->installments();
+        if ($installments === null) {
+            return null;
+        }
+
+        $frequency = $this->enum('frequency', PlanFrequency::class) ?? PlanFrequency::Daily;
+        $weekdays = $frequency === PlanFrequency::Daily
+            ? ($this->has('weekdays') ? array_values(array_map(intval(...), (array) $this->input('weekdays', []))) : CollectionPlan::DEFAULT_WEEKDAYS)
+            : null;
+
+        return new CollectionPlanData($frequency, $installments->installment, $weekdays, $this->firstCollectionOn());
+    }
+
+    /**
+     * The entered date, else the day after the loan date (today at the earliest).
+     */
+    public function firstCollectionOn(): Carbon
+    {
+        if ($this->filled('starts_on')) {
+            return Carbon::createFromFormat('!Y-m-d', $this->string('starts_on')->value()) ?: today();
+        }
+
+        $today = Carbon::parse(today(config('app.display_timezone'))->toDateString());
+        $dayAfter = $this->filled('opened_at') ? Carbon::parse($this->string('opened_at')->value())->addDay() : $today->copy()->addDay();
+
+        return $dayAfter->max($today);
     }
 }

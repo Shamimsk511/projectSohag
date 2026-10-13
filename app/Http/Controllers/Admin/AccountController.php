@@ -16,8 +16,11 @@ use App\Models\CollectionSchedule;
 use App\Models\OfficeHead;
 use App\Models\Party;
 use App\Models\Transaction;
+use App\Models\User;
 use App\Services\AccountService;
+use App\Services\CollectionService;
 use App\Services\LedgerService;
+use App\Services\LoanSetupService;
 use App\Support\Money;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Gate;
@@ -39,17 +42,26 @@ class AccountController extends Controller
             'party' => $party,
             'types' => AccountType::cases(),
             'canCarryIn' => Gate::allows(Permission::SetOpeningBalances->value),
+            'officers' => User::query()->activeFieldOfficers()->orderBy('name')->get(['id', 'name']),
+            'currentOfficerId' => $party->activeAssignment()->value('field_officer_id'),
+            'canAssign' => Gate::allows('assign', $party),
         ]);
     }
 
-    public function store(StoreAccountRequest $request, Party $party): RedirectResponse
+    public function store(StoreAccountRequest $request, Party $party, LoanSetupService $loanSetup): RedirectResponse
     {
         $account = match (true) {
-            $request->isExistingLoan() => $this->accounts->openExistingLoan(
-                $party, $request->principalAmount(), $request->agreedExtra(), $request->receivedBefore(),
-                $request->openedAt(), $request->carriedAsOf(), $this->actor(),
+            $request->accountType() === AccountType::Loan => $loanSetup->open(
+                fn (): Account => $request->isExistingLoan()
+                    ? $this->accounts->openExistingLoan(
+                        $party, $request->principalAmount(), $request->agreedExtra(), $request->receivedBefore(),
+                        $request->openedAt(), $request->carriedAsOf(), $this->actor(),
+                    )
+                    : $this->accounts->openLoan($party, $request->principalAmount(), $request->agreedExtra(), $request->paymentMethod(), $request->openedAt(), $this->actor()),
+                $request->fieldOfficer(),
+                $request->collectionPlan(),
+                $this->actor(),
             ),
-            $request->accountType() === AccountType::Loan => $this->accounts->openLoan($party, $request->principalAmount(), $request->agreedExtra(), $request->paymentMethod(), $request->openedAt(), $this->actor()),
             $request->accountType() === AccountType::Fdr => $this->accounts->openFdr($party, $request->agreedAmount(), $request->openedAt(), $this->actor()),
             default => $this->accounts->openSaving($party, $request->agreedAmount(), $request->openedAt(), $this->actor()),
         };
@@ -57,15 +69,16 @@ class AccountController extends Controller
         return redirect()->route('admin.accounts.show', $account)->with('status', __('app.accounts.opened'));
     }
 
-    public function show(Account $account, LedgerService $ledger): View
+    public function show(Account $account, LedgerService $ledger, CollectionService $collections): View
     {
         Gate::authorize('view', $account);
 
-        $account->load(['party', 'closedBy', 'adjustments.createdBy', 'collectionPlan']);
+        $account->load(['party.activeAssignment.fieldOfficer', 'closedBy', 'adjustments.createdBy', 'collectionPlan']);
         $today = today(config('app.display_timezone'))->toDateString();
 
         return view('admin.accounts.show', [
             'account' => $account,
+            'loanProgress' => $collections->loanProgress($account),
             'received' => match ($account->account_type) {
                 AccountType::Loan => $ledger->loanReceived($account),
                 AccountType::Fdr => $ledger->fdrDeposited($account),

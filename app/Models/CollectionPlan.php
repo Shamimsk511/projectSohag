@@ -80,6 +80,56 @@ class CollectionPlan extends Model
     }
 
     /**
+     * Whether a row is due on $date. Nothing is due on a holiday; daily plans skip it, weekly and
+     * monthly plans whose day fell on holidays just before $date are due on $date instead.
+     *
+     * @param  list<string>  $holidays  Y-m-d
+     */
+    public function isDueOn(Carbon $date, array $holidays): bool
+    {
+        if (in_array($date->toDateString(), $holidays, true)) {
+            return false;
+        }
+
+        if ($this->frequency === PlanFrequency::Daily) {
+            return $this->fallsOn($date);
+        }
+
+        $candidate = $date->copy();
+        do {
+            if ($this->fallsOn($candidate)) {
+                return true;
+            }
+            $candidate->subDay();
+        } while (in_array($candidate->toDateString(), $holidays, true));
+
+        return false;
+    }
+
+    /**
+     * The first $count due dates on or after $from, by the generator's rules. Fewer when the plan
+     * ends first (or within 40 years).
+     *
+     * @param  list<string>  $holidays  Y-m-d
+     * @return list<Carbon>
+     */
+    public function projectedDates(Carbon $from, int $count, array $holidays): array
+    {
+        $date = Carbon::parse($from->max($this->starts_on)->toDateString());
+        $until = $this->ends_on?->copy()->addMonth() ?? $date->copy()->addYears(40);
+        $dates = [];
+
+        while (count($dates) < $count && $date->lte($until)) {
+            if ($this->isDueOn($date, $holidays)) {
+                $dates[] = $date->copy();
+            }
+            $date->addDay();
+        }
+
+        return $dates;
+    }
+
+    /**
      * Installment times the collection days from start to end, before holidays. Null for an open-ended plan.
      */
     public function estimatedTotal(): ?Money

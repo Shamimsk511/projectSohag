@@ -1,4 +1,4 @@
-{{-- Collection plan summary and the next schedule rows. Expects $account, $upcoming, $date, $canSchedule. --}}
+{{-- Collection plan summary and the next schedule rows. Expects $account, $upcoming, $date, $canSchedule; optional $loanProgress. --}}
 @php($plan = $account->collectionPlan)
 <div class="card mb-3">
     <div class="card-header"><h3 class="card-title mb-0">{{ __('app.schedules.plan') }}</h3></div>
@@ -13,6 +13,18 @@
                 @if ($plan->ends_on)
                     · {{ __('app.schedules.plan_until', ['date' => $date($plan->ends_on)]) }}
                 @endif
+            </p>
+            @if ($loanProgress ?? null)
+                <p class="mb-1">
+                    {{ __('app.schedules.plan_progress', ['paid' => \App\Support\Numerals::localize((string) $loanProgress['paid']), 'total' => \App\Support\Numerals::localize((string) $loanProgress['total'])]) }}
+                    @if ($loanProgress['ends_on'])
+                        · {{ __('app.schedules.estimated_end', ['date' => $date($loanProgress['ends_on'])]) }}
+                    @endif
+                </p>
+            @endif
+            <p class="mb-1 small">
+                {{ __('app.schedules.officer') }}:
+                <span class="fw-semibold">{{ $account->party->activeAssignment?->fieldOfficer?->name ?? __('app.schedules.unassigned') }}</span>
             </p>
             @if ($plan->weekdays)
                 <p class="mb-0 small text-body-secondary">

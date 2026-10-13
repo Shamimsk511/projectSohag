@@ -1,5 +1,5 @@
 /**
- * Account pages: contract amount label per account type (loan, saving agreed amount, FDR agreed payback), action sections, entry form labels per
+ * Account pages: contract amount label per account type (loan, saving agreed amount, FDR agreed payback), loan collection section with live preview, action sections, entry form labels per
  * type, weekday choices only for daily collection plans, plan term -> end date + estimated total
  * (display only; the server stores what is posted), confirm before posting/closing, no double posts.
  */
@@ -14,7 +14,7 @@ function initTypeToggle(form) {
 
     const toggle = (box, on) => {
         box.hidden = !on;
-        box.querySelectorAll('input').forEach((input) => {
+        box.querySelectorAll('input, select').forEach((input) => {
             input.disabled = !on;
         });
     };
@@ -64,6 +64,94 @@ function initTypeToggle(form) {
     [principal, extra].forEach((input) => input.addEventListener('input', showTotal));
     sync();
     showTotal();
+}
+
+/**
+ * Loan collection section: weekdays only for daily plans; installment and number of installments
+ * fill each other and the preview comes from the server (same math and dates as opening). Display only.
+ */
+function initLoanCollection(form) {
+    const box = form.querySelector('[data-collection-fields]');
+    const preview = form.querySelector('[data-loan-preview]');
+    if (!box || !preview) {
+        return;
+    }
+
+    const field = (name) => form.querySelector(`[name="${name}"]`);
+    const frequency = field('frequency');
+    const weekdays = box.querySelector('[data-daily-only]');
+    const basis = field('installment_basis');
+    let timer = null;
+    let request = null;
+
+    const syncFrequency = () => {
+        const isDaily = frequency.value === 'daily';
+        weekdays.hidden = !isDaily;
+        weekdays.disabled = !isDaily;
+    };
+
+    const refresh = async () => {
+        request?.abort();
+        const typed = (name) => field(name).value.trim() !== '';
+        if (box.closest('[data-loan-fields]').hidden || !typed('principal_amount') || !(typed('installment_amount') || typed('installment_count'))) {
+            preview.hidden = true;
+            return;
+        }
+
+        request = new AbortController();
+        const params = new URLSearchParams();
+        new FormData(form).forEach((value, key) => {
+            if (key !== '_token') {
+                params.append(key, value);
+            }
+        });
+
+        try {
+            const response = await fetch(`${preview.dataset.url}?${params}`, {
+                headers: { Accept: 'application/json' },
+                credentials: 'same-origin',
+                signal: request.signal,
+            });
+            const data = response.ok ? await response.json() : { ready: false };
+            preview.hidden = !data.ready;
+            if (!data.ready) {
+                return;
+            }
+            preview.querySelectorAll('[data-preview]').forEach((node) => {
+                node.textContent = data[node.dataset.preview] ?? '';
+            });
+            preview.querySelector('[data-preview-carried]').hidden = data.to_collect === data.contract;
+            if (basis.value === 'count') {
+                field('installment_amount').value = data.installment_taka;
+            } else {
+                field('installment_count').value = data.count;
+            }
+        } catch (error) {
+            if (error.name !== 'AbortError') {
+                preview.hidden = true;
+            }
+        }
+    };
+
+    const schedule = () => {
+        clearTimeout(timer);
+        timer = setTimeout(refresh, 300);
+    };
+
+    /** Typing in one sets the basis; clearing it clears the other too (no plan). */
+    [['installment_amount', 'installment_count', 'amount'], ['installment_count', 'installment_amount', 'count']].forEach(([name, other, kind]) => {
+        field(name).addEventListener('input', () => {
+            basis.value = kind;
+            if (field(name).value.trim() === '') {
+                field(other).value = '';
+            }
+        });
+    });
+    frequency.addEventListener('change', syncFrequency);
+    form.addEventListener('input', schedule);
+    form.addEventListener('change', schedule);
+    syncFrequency();
+    refresh();
 }
 
 function initPlanToggle(form) {
@@ -216,7 +304,10 @@ function initSubmitOnce(form) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    document.querySelectorAll('form.js-account-form').forEach(initTypeToggle);
+    document.querySelectorAll('form.js-account-form').forEach((form) => {
+        initTypeToggle(form);
+        initLoanCollection(form);
+    });
     document.querySelectorAll('form.js-plan-form').forEach(initPlanToggle);
     document.querySelectorAll('form.js-entry-form').forEach(initEntryForm);
     document.querySelectorAll('form.js-once').forEach(initSubmitOnce);
