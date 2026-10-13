@@ -38,6 +38,7 @@ class AccountController extends Controller
     {
         Gate::authorize('view', $party);
         Gate::authorize('create', Account::class);
+        $incomeHeads = OfficeHead::query()->active()->where('kind', TransactionType::OfficeIncome)->orderBy('name')->get();
 
         return view('admin.accounts.create', [
             'party' => $party,
@@ -47,6 +48,8 @@ class AccountController extends Controller
             'officers' => User::query()->activeFieldOfficers()->orderBy('name')->get(['id', 'name']),
             'currentOfficerId' => $party->activeAssignment()->value('field_officer_id'),
             'canAssign' => Gate::allows('assign', $party),
+            'canTakeFee' => Gate::allows(Permission::PostOfficeEntries->value) && $incomeHeads->isNotEmpty(),
+            'incomeHeads' => $incomeHeads,
         ]);
     }
 
@@ -65,12 +68,22 @@ class AccountController extends Controller
             $request->fieldOfficer(),
             $request->collectionPlan(),
             $this->actor(),
+            $request->fee(),
         );
 
         $notice = Transaction::query()->where('account_id', $account->id)->where('type', TransactionType::LoanDisbursement)->value('id');
+        $fee = Transaction::query()->where('account_id', $account->id)->where('type', TransactionType::OfficeIncome)->first();
+        $status = __('app.accounts.opened');
+        if ($fee !== null) {
+            $status .= ' '.__('app.office_heads.fee_recorded', ['receipt' => $fee->receipt_no]);
+            $inHand = $request->accountType() === AccountType::Loan ? $request->principalAmount()->minus($fee->amount) : null;
+            if ($inHand?->isPositive()) {
+                $status .= ' '.__('app.office_heads.fee_net', ['amount' => $inHand->format()]);
+            }
+        }
 
         return redirect()->route('admin.accounts.show', $account)
-            ->with('status', __('app.accounts.opened'))
+            ->with('status', $status)
             ->with('whatsapp_notice', $notice);
     }
 

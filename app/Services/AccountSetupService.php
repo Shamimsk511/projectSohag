@@ -4,31 +4,34 @@ namespace App\Services;
 
 use App\Models\Account;
 use App\Models\User;
+use App\Support\ClientFee;
 use App\Support\CollectionPlanData;
 use Closure;
 use Illuminate\Support\Facades\DB;
 
 /**
  * Open an account (loan, saving or FDR), hand the member to a field officer and start collecting in
- * one step, all or nothing. Each step stays with its own service, rules and audit row; this only
- * runs them together.
+ * one step, all or nothing, with an optional fee taken from the member. Each step stays with its own
+ * service, rules and audit row; this only runs them together.
  */
 class AccountSetupService
 {
     public function __construct(
         private readonly AssignmentService $assignments,
         private readonly CollectionService $collections,
+        private readonly TransactionService $transactions,
     ) {}
 
     /**
      * The officer is assigned before the plan is saved, so the first rows are generated for them.
      * Loan plans have no end date (rows stop once nothing is outstanding); saving and FDR plans may.
+     * The fee is dated the day the account opens.
      *
      * @param  Closure(): Account  $openAccount  opens the account through AccountService
      */
-    public function open(Closure $openAccount, ?User $officer, ?CollectionPlanData $plan, User $actor): Account
+    public function open(Closure $openAccount, ?User $officer, ?CollectionPlanData $plan, User $actor, ?ClientFee $fee = null): Account
     {
-        return DB::transaction(function () use ($openAccount, $officer, $plan, $actor): Account {
+        return DB::transaction(function () use ($openAccount, $officer, $plan, $actor, $fee): Account {
             $account = $openAccount();
 
             if ($officer !== null) {
@@ -37,6 +40,10 @@ class AccountSetupService
 
             if ($plan !== null) {
                 $this->collections->savePlan($account, $plan->frequency, $plan->installment, $plan->weekdays, $plan->startsOn, $plan->endsOn, $actor);
+            }
+
+            if ($fee !== null) {
+                $this->transactions->record($fee->entryFor($account, $account->opened_at), $actor);
             }
 
             return $account;

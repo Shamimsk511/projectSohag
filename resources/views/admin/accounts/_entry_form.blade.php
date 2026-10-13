@@ -1,4 +1,4 @@
-{{-- Office ledger entry (deposit, withdrawal, opening, agreed credit, disbursement) for an active account. Expects $account, $entryTypes. --}}
+{{-- Office ledger entry (deposit, withdrawal, opening, agreed credit, disbursement) for an active account, with an optional fee. Expects $account, $entryTypes, $canIncome, $incomeHeads. --}}
 @php
     $today = today(config('app.display_timezone'))->toDateString();
     $selected = old('type', $entryTypes[0]->value);
@@ -99,6 +99,10 @@
     </fieldset>
     {{-- Book entries move no money; the server stores no method for them, this keeps the request valid. --}}
     <input type="hidden" name="payment_method" value="cash" data-money-fallback @if ($current['money']) disabled @endif>
+
+    @if ($canIncome && $incomeHeads->isNotEmpty())
+        @include('admin.accounts._fee_fields')
+    @endif
 
     <details class="mb-3" @if ($errors->hasAny(['reference', 'description'])) open @endif>
         <summary class="fw-semibold text-primary py-2">{{ __('app.accounts.more_details') }}</summary>

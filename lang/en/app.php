@@ -415,6 +415,12 @@ return [
         'client_income' => 'Income from this client',
         'client_income_hint' => 'A fee or other amount received from this client. It does not change the loan or savings balance.',
         'client_income_empty' => 'No office income from this client yet.',
+        'fee_toggle' => 'Take a fee from the member',
+        'fee_hint' => 'Saved as separate office income with its own receipt. The main amount is not changed.',
+        'fee_head' => 'Fee head',
+        'fee_amount' => 'Fee amount',
+        'fee_recorded' => 'Fee receipt no: :receipt.',
+        'fee_net' => 'Give the member :amount in hand.',
         'submit' => 'Save income',
     ],
     'office_entries' => [

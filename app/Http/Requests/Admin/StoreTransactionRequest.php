@@ -4,10 +4,12 @@ namespace App\Http\Requests\Admin;
 
 use App\Enums\PaymentMethod;
 use App\Enums\TransactionType;
+use App\Http\Requests\Admin\Concerns\TakesClientFee;
 use App\Models\Account;
 use App\Models\CollectionSchedule;
 use App\Models\Transaction;
 use App\Rules\TakaAmount;
+use App\Support\ClientFee;
 use App\Support\Money;
 use App\Support\TransactionData;
 use Illuminate\Contracts\Validation\ValidationRule;
@@ -16,10 +18,12 @@ use Illuminate\Validation\Rule;
 use LogicException;
 
 /**
- * Office entry on one account, optionally settling one of its collection rows. Balance, date and account-state rules are checked by TransactionService.
+ * Office entry on one account, optionally settling one of its collection rows and taking a fee. Balance, date and account-state rules are checked by TransactionService.
  */
 class StoreTransactionRequest extends FormRequest
 {
+    use TakesClientFee;
+
     public function authorize(): bool
     {
         return $this->user()?->can('create', [Transaction::class, $this->account()]) ?? false;
@@ -41,6 +45,7 @@ class StoreTransactionRequest extends FormRequest
             'schedule_id' => ['nullable', 'integer', Rule::exists('collection_schedules', 'id')],
             'reference' => ['nullable', 'string', 'max:100'],
             'description' => ['nullable', 'string', 'max:500'],
+            ...$this->feeRules(),
         ];
     }
 
@@ -57,6 +62,7 @@ class StoreTransactionRequest extends FormRequest
             'schedule_id' => __('app.transactions.schedule'),
             'reference' => __('app.transactions.reference'),
             'description' => __('app.transactions.description'),
+            ...$this->feeAttributes(),
         ];
     }
 
@@ -72,6 +78,14 @@ class StoreTransactionRequest extends FormRequest
             description: $this->validated('description'),
             schedule: $this->filled('schedule_id') ? CollectionSchedule::query()->find($this->integer('schedule_id')) : null,
         );
+    }
+
+    /**
+     * Fee taken from the member with this entry, paid the same way, on the same date.
+     */
+    public function fee(): ?ClientFee
+    {
+        return $this->clientFee(PaymentMethod::from($this->string('payment_method')->value()));
     }
 
     private function account(): Account

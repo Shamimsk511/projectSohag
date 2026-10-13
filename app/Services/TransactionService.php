@@ -12,6 +12,7 @@ use App\Models\DailyClosing;
 use App\Models\OfficeHead;
 use App\Models\Transaction;
 use App\Models\User;
+use App\Support\ClientFee;
 use App\Support\TransactionData;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Carbon;
@@ -47,6 +48,26 @@ class TransactionService
             // A retry with the same client_uuid committed first.
             return $this->findByClientUuid($data->clientUuid) ?? throw $exception;
         }
+    }
+
+    /**
+     * An entry and the fee taken from the member with it (own office income row on the same account
+     * and date), all or nothing.
+     *
+     * @return array{0: Transaction, 1: ?Transaction}
+     */
+    public function recordWithFee(TransactionData $data, ?ClientFee $fee, User $actor): array
+    {
+        if ($fee === null || $data->account === null) {
+            return [$this->record($data, $actor), null];
+        }
+
+        $account = $data->account;
+
+        return DB::transaction(fn (): array => [
+            $this->record($data, $actor),
+            $this->record($fee->entryFor($account, $data->date), $actor),
+        ]);
     }
 
     /**

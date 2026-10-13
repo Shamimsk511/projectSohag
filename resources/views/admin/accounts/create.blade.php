@@ -180,6 +180,10 @@
                               :value="today(config('app.display_timezone'))->toDateString()"
                               :max="today(config('app.display_timezone'))->toDateString()" />
             </div>
+
+            @if ($canTakeFee)
+                @include('admin.accounts._fee_fields')
+            @endif
         </div>
         <div class="card-footer d-flex gap-2">
             <button type="submit" class="btn btn-primary">

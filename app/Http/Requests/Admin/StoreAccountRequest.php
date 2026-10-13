@@ -5,11 +5,13 @@ namespace App\Http\Requests\Admin;
 use App\Enums\AccountType;
 use App\Enums\PaymentMethod;
 use App\Enums\PlanFrequency;
+use App\Http\Requests\Admin\Concerns\TakesClientFee;
 use App\Models\Account;
 use App\Models\CollectionPlan;
 use App\Models\Party;
 use App\Models\User;
 use App\Rules\TakaAmount;
+use App\Support\ClientFee;
 use App\Support\CollectionPlanData;
 use App\Support\Installments;
 use App\Support\Money;
@@ -21,6 +23,8 @@ use Illuminate\Validation\Validator;
 
 class StoreAccountRequest extends FormRequest
 {
+    use TakesClientFee;
+
     public function authorize(): bool
     {
         return $this->user()?->can('create', Account::class) ?? false;
@@ -42,6 +46,7 @@ class StoreAccountRequest extends FormRequest
             'carried_as_of' => ['required_if:existing_loan,1', 'nullable', 'date_format:Y-m-d', 'before_or_equal:'.today(config('app.display_timezone'))->toDateString()],
             'opened_at' => ['required', 'date_format:Y-m-d', 'before_or_equal:'.today(config('app.display_timezone'))->toDateString()],
             ...$this->collectionRules(),
+            ...$this->feeRules(),
         ];
     }
 
@@ -120,6 +125,7 @@ class StoreAccountRequest extends FormRequest
             'ends_on' => __('app.schedules.ends_on'),
             'duration' => __('app.schedules.duration'),
             'duration_unit' => __('app.schedules.duration_unit'),
+            ...$this->feeAttributes(),
         ];
     }
 
@@ -162,6 +168,14 @@ class StoreAccountRequest extends FormRequest
     public function carriedAsOf(): Carbon
     {
         return Carbon::createFromFormat('Y-m-d', $this->string('carried_as_of')->value()) ?: today();
+    }
+
+    /**
+     * Fee taken from the member when the account is opened. A carried-in loan is history: no fee.
+     */
+    public function fee(): ?ClientFee
+    {
+        return $this->isExistingLoan() ? null : $this->clientFee($this->paymentMethod());
     }
 
     public function paymentMethod(): PaymentMethod

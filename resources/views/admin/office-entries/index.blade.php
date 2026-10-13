@@ -48,7 +48,14 @@
                         </fieldset>
 
                         <div class="mb-3">
-                            <label for="office_head_id" class="form-label">{{ __('app.office_heads.head') }}</label>
+                            <div class="d-flex justify-content-between align-items-baseline">
+                                <label for="office_head_id" class="form-label">{{ __('app.office_heads.head') }}</label>
+                                @can('create', \App\Models\OfficeHead::class)
+                                    <a href="{{ route('admin.office-heads.create') }}" class="small">
+                                        <i class="bi bi-plus-lg" aria-hidden="true"></i> {{ __('app.office_heads.create') }}
+                                    </a>
+                                @endcan
+                            </div>
                             <select id="office_head_id" name="office_head_id" @class(['form-select', 'is-invalid' => $errors->has('office_head_id')])>
                                 <option value="">{{ __('app.office_heads.none') }}</option>
                                 @foreach ($heads as $head)

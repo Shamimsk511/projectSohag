@@ -70,6 +70,16 @@ enum TransactionType: string
     }
 
     /**
+     * Money the office hands to a member: a loan given, a saving withdrawal, an FDR payback.
+     *
+     * @return list<self>
+     */
+    public static function payoutTypes(): array
+    {
+        return [self::LoanDisbursement, self::SavingWithdrawal, self::InvestmentReturn];
+    }
+
+    /**
      * Book entries with no money changing hands get no payment method.
      */
     public function movesMoney(): bool

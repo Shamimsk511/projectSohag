@@ -17,11 +17,18 @@ class TransactionController extends Controller
 
     public function store(StoreTransactionRequest $request, Account $account): RedirectResponse
     {
-        $transaction = $this->transactions->record($request->transactionData(), $this->actor());
+        [$transaction, $fee] = $this->transactions->recordWithFee($request->transactionData(), $request->fee(), $this->actor());
 
         $status = $transaction->receipt_no
             ? __('app.transactions.recorded_with_receipt', ['receipt' => $transaction->receipt_no])
             : __('app.transactions.recorded');
+        if ($fee !== null) {
+            $status .= ' '.__('app.office_heads.fee_recorded', ['receipt' => $fee->receipt_no]);
+            $inHand = $transaction->amount->minus($fee->amount);
+            if (in_array($transaction->type, TransactionType::payoutTypes(), true) && $inHand->isPositive()) {
+                $status .= ' '.__('app.office_heads.fee_net', ['amount' => $inHand->format()]);
+            }
+        }
 
         $redirect = redirect()->route('admin.accounts.show', $account)->with('status', $status);
 

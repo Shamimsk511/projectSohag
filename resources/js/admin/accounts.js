@@ -32,6 +32,17 @@ function initTypeToggle(form) {
         }
         newLoanOnly.hidden = isExisting;
         newLoanOnly.disabled = isExisting;
+        syncFee();
+    };
+
+    /** A carried-in loan is history: no fee is taken with it. */
+    const feeFields = form.querySelector('[data-fee-fields]');
+    const syncFee = () => {
+        if (feeFields) {
+            const off = form.querySelector('input[name="account_type"]:checked')?.value === 'loan' && Boolean(existing?.checked);
+            feeFields.hidden = off;
+            feeFields.disabled = off;
+        }
     };
 
     const sync = () => {
@@ -53,6 +64,7 @@ function initTypeToggle(form) {
         if (isLoan) {
             syncExisting();
         }
+        syncFee();
     };
 
     /** Display only; the server adds principal and extra again. */
@@ -253,6 +265,7 @@ function initEntryForm(form) {
     const moneyFields = form.querySelector('[data-money-only]');
     const moneyFallback = form.querySelector('[data-money-fallback]');
     const scheduleField = form.querySelector('[data-schedule-only]');
+    const feeFields = form.querySelector('[data-fee-fields]');
 
     const sync = () => {
         const type = form.querySelector('input[name="type"]:checked, input[name="type"][type="hidden"]')?.value;
@@ -269,6 +282,10 @@ function initEntryForm(form) {
         moneyFields.hidden = !strings.money;
         moneyFields.disabled = !strings.money;
         moneyFallback.disabled = strings.money;
+        if (feeFields) {
+            feeFields.hidden = !strings.money;
+            feeFields.disabled = !strings.money;
+        }
         if (scheduleField) {
             scheduleField.hidden = !strings.schedule;
             scheduleField.querySelector('select').disabled = !strings.schedule;
