@@ -161,6 +161,7 @@
             </div>
             <p class="mb-0">{{ __('app.site.copyright', ['year' => \App\Support\Numerals::localize((string) now(config('app.display_timezone'))->year)]) }}</p>
             <p class="mb-0 site-footer__small">{{ __('app.site.photo_note') }} <a href="{{ route('login') }}">{{ __('app.site.staff_login') }}</a></p>
+            <p class="mb-0 site-footer__credit">{{ __('app.site.created_by') }} Shamim Reza (<a href="tel:+8801970598449">+8801970-598449</a>)</p>
         </div>
     </footer>
 @endsection

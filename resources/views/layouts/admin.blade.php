@@ -3,7 +3,7 @@
 {{-- Extend and customize the browser title --}}
 
 @section('title')
-    {{ config('adminlte.title') }}
+    {{ __('app.site.org_name') }}
     @hasSection('subtitle') | @yield('subtitle') @endif
 @stop
 
@@ -67,5 +67,8 @@
 {{-- Create a common footer --}}
 
 @section('footer')
-    <strong>{{ config('app.name') }}</strong>
+    <div class="d-flex flex-wrap justify-content-between gap-2">
+        <strong>{{ __('app.site.org_name') }}</strong>
+        <span class="text-body-secondary">{{ __('app.site.created_by') }} Shamim Reza (<a href="tel:+8801970598449">+8801970-598449</a>)</span>
+    </div>
 @stop

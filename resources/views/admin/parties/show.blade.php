@@ -32,7 +32,7 @@
     @endphp
 
     @if ($party->accounts->isEmpty() && $canOpenAccount)
-        <div class="card mb-3 border-primary border-2">
+        <div class="card mb-3 edge-card tone-primary">
             <div class="card-body">
                 <h2 class="h5">{{ __('app.parties.first_account') }}</h2>
                 <p class="text-body-secondary">{{ __('app.parties.first_account_hint') }}</p>
@@ -51,17 +51,21 @@
         @php
             $n = fn (int $value): string => \App\Support\Numerals::localize((string) $value);
         @endphp
-        <div class="card mb-3 bg-body-tertiary">
-            <div class="card-body d-flex flex-wrap align-items-center gap-4">
-                <div>
-                    <div class="text-body-secondary small">{{ __('app.parties.progress.owes_us') }}</div>
-                    <div class="fs-3 fw-bold text-nowrap">{{ $totals['owes']->format() }}</div>
+        <div class="row g-3 mb-3">
+            <div class="col-sm-6 col-lg-4">
+                <div class="stat-tile tone-primary">
+                    <div class="stat-tile__label"><i class="bi bi-arrow-down-left-circle" aria-hidden="true"></i>{{ __('app.parties.progress.owes_us') }}</div>
+                    <div class="stat-tile__amount">{{ $totals['owes']->format() }}</div>
                 </div>
-                <div>
-                    <div class="text-body-secondary small">{{ __('app.parties.progress.we_hold') }}</div>
-                    <div class="fs-3 fw-bold text-nowrap">{{ $totals['holds']->format() }}</div>
+            </div>
+            <div class="col-sm-6 col-lg-4">
+                <div class="stat-tile tone-success">
+                    <div class="stat-tile__label"><i class="bi bi-safe" aria-hidden="true"></i>{{ __('app.parties.progress.we_hold') }}</div>
+                    <div class="stat-tile__amount">{{ $totals['holds']->format() }}</div>
                 </div>
-                <a href="{{ route('admin.parties.statement', $party) }}" class="btn btn-outline-secondary ms-auto">
+            </div>
+            <div class="col-lg-4 d-flex align-items-center justify-content-lg-end">
+                <a href="{{ route('admin.parties.statement', $party) }}" class="btn btn-outline-primary">
                     <i class="bi bi-journal-text" aria-hidden="true"></i> {{ __('app.parties.statement_link') }}
                 </a>
             </div>

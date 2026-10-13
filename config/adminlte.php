@@ -531,7 +531,7 @@ return [
     |
     */
 
-    'classes_body' => 'bg-body-tertiary',
+    'classes_body' => '',
     'classes_brand' => '',
     'classes_brand_text' => 'fw-light',
     'classes_wrapper' => '',
@@ -541,7 +541,7 @@ return [
     'classes_content' => '',
     'classes_content_top_area' => '',
     'classes_content_bottom_area' => '',
-    'classes_sidebar' => 'bg-body-secondary shadow',
+    'classes_sidebar' => 'sidebar-paddy',
     'classes_sidebar_nav' => '',
     'classes_topnav' => 'bg-body',
     'classes_topnav_nav' => 'navbar-expand',

@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 use JeroenNoten\LaravelAdminLte\Events\BuildingMenu;
 
@@ -33,6 +34,12 @@ class AppServiceProvider extends ServiceProvider
         Model::preventLazyLoading(! $this->app->isProduction());
 
         Paginator::useBootstrapFive();
+
+        // Sidebar brand in the visitor's language; config is read before the locale middleware runs.
+        View::composer('adminlte::page', function (): void {
+            $name = __('app.site.org_name');
+            config(['adminlte.logo' => '<b>'.e($name).'</b>', 'adminlte.logo_img_alt' => $name]);
+        });
 
         // Items with app-translated labels; config/adminlte.php can only use the package's menu strings.
         Event::listen(BuildingMenu::class, function (BuildingMenu $event): void {

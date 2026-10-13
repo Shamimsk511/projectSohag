@@ -5,6 +5,342 @@
     --bs-body-font-family: "Source Sans 3", "Noto Sans Bengali", system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
+/* Theme: same palette as the public site (paddy green, jute gold, mist). Light by default; dark via AdminLTE's
+   colour mode widget in the top bar (html[data-bs-theme="dark"]). Sidebar is the one bold surface; everything else stays quiet. */
+:root,
+[data-bs-theme="light"] {
+    --paddy: #1e4d3b;
+    --paddy-deep: #143628;
+    --jute: #d9b44a;
+    --jute-soft: #f6ecd0;
+    --mist: #f2f5ef;
+    --line: #dbe3d5;
+
+    --bs-primary: #1e4d3b;
+    --bs-primary-rgb: 30, 77, 59;
+    --bs-primary-text-emphasis: #143628;
+    --bs-primary-bg-subtle: #dfeae2;
+    --bs-primary-border-subtle: #b5ccbc;
+    --bs-success: #2f7d4f;
+    --bs-success-rgb: 47, 125, 79;
+    --bs-warning: #d9b44a;
+    --bs-warning-rgb: 217, 180, 74;
+    --bs-warning-bg-subtle: #f6ecd0;
+    --bs-danger: #b3412f;
+    --bs-danger-rgb: 179, 65, 47;
+    --bs-info: #8cc3cf;
+    --bs-info-rgb: 140, 195, 207;
+    --bs-body-color: #2b241c;
+    --bs-body-color-rgb: 43, 36, 28;
+    --bs-secondary-color: rgba(43, 36, 28, .68);
+    --bs-tertiary-bg: #f2f5ef;
+    --bs-tertiary-bg-rgb: 242, 245, 239;
+    --bs-secondary-bg: #e7ece2;
+    --bs-border-color: #dbe3d5;
+    --bs-link-color: #1e4d3b;
+    --bs-link-color-rgb: 30, 77, 59;
+    --bs-link-hover-color: #143628;
+    --bs-link-hover-color-rgb: 20, 54, 40;
+    --bs-focus-ring-color: rgba(217, 180, 74, .45);
+    --bs-border-radius: .5rem;
+    --bs-border-radius-lg: .75rem;
+    --surface: #fff;
+}
+
+[data-bs-theme="dark"] {
+    --line: #26392f;
+
+    --bs-primary: #7fbf98;
+    --bs-primary-rgb: 127, 191, 152;
+    --bs-primary-text-emphasis: #a9d6ba;
+    --bs-primary-bg-subtle: #17301f;
+    --bs-primary-border-subtle: #2d5a3e;
+    --bs-success: #5fb47f;
+    --bs-success-rgb: 95, 180, 127;
+    --bs-warning: #e2c165;
+    --bs-warning-rgb: 226, 193, 101;
+    --bs-danger: #e07a66;
+    --bs-danger-rgb: 224, 122, 102;
+    --bs-body-bg: #0f1914;
+    --bs-body-bg-rgb: 15, 25, 20;
+    --bs-body-color: #e3e9e4;
+    --bs-body-color-rgb: 227, 233, 228;
+    --bs-secondary-color: rgba(227, 233, 228, .66);
+    --bs-tertiary-bg: #0f1914;
+    --bs-tertiary-bg-rgb: 15, 25, 20;
+    --bs-secondary-bg: #1b2a22;
+    --bs-border-color: #26392f;
+    --bs-link-color: #8fcaa6;
+    --bs-link-color-rgb: 143, 202, 166;
+    --bs-link-hover-color: #b6dec5;
+    --bs-link-hover-color-rgb: 182, 222, 197;
+    --surface: #15221b;
+}
+
+body {
+    font-variant-numeric: tabular-nums;
+}
+
+:focus-visible {
+    outline: 3px solid var(--jute);
+    outline-offset: 2px;
+}
+
+/* Page frame */
+.app-main {
+    background: var(--bs-tertiary-bg);
+}
+
+.app-header {
+    background: var(--surface) !important;
+    border-bottom: 1px solid var(--line);
+    box-shadow: none;
+}
+
+.app-footer {
+    background: var(--surface);
+    border-top: 1px solid var(--line);
+}
+
+.app-content-header h1 {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--bs-body-color) !important;
+}
+
+/* Sidebar: deep paddy green, jute gold marks the page you are on. */
+.app-sidebar.sidebar-paddy {
+    --lte-sidebar-color: rgba(255, 255, 255, .78);
+    --lte-sidebar-hover-color: #fff;
+    --lte-sidebar-hover-bg: rgba(255, 255, 255, .07);
+    --lte-sidebar-active-color: #fff;
+    --lte-sidebar-menu-active-bg: rgba(217, 180, 74, .16);
+    --lte-sidebar-menu-active-color: var(--jute-soft);
+    --lte-sidebar-submenu-color: rgba(255, 255, 255, .7);
+    --lte-sidebar-submenu-hover-color: #fff;
+    --lte-sidebar-submenu-hover-bg: rgba(255, 255, 255, .06);
+    --lte-sidebar-submenu-active-color: var(--jute-soft);
+    --lte-sidebar-submenu-active-bg: rgba(217, 180, 74, .12);
+    background: linear-gradient(180deg, var(--paddy) 0%, var(--paddy-deep) 100%) !important;
+    border-right: 0;
+    box-shadow: none !important;
+}
+
+[data-bs-theme="dark"] .app-sidebar.sidebar-paddy {
+    background: #0b1410 !important;
+    border-right: 1px solid var(--line);
+}
+
+.sidebar-paddy .sidebar-brand {
+    border-bottom: 1px solid rgba(255, 255, 255, .1);
+}
+
+.sidebar-paddy .brand-text {
+    color: #fff;
+    font-weight: 700 !important;
+}
+
+.sidebar-paddy .sidebar-menu .nav-link {
+    position: relative;
+    margin: 1px .5rem;
+    border-radius: var(--bs-border-radius);
+    color: var(--lte-sidebar-color);
+}
+
+.sidebar-paddy .sidebar-menu .nav-link:hover {
+    background: var(--lte-sidebar-hover-bg);
+    color: #fff;
+}
+
+.sidebar-paddy .sidebar-menu .nav-link.active {
+    background: var(--lte-sidebar-menu-active-bg) !important;
+    color: var(--jute-soft) !important;
+    box-shadow: none;
+}
+
+.sidebar-paddy .sidebar-menu .nav-link.active::before {
+    content: "";
+    position: absolute;
+    top: .45rem;
+    bottom: .45rem;
+    left: -.5rem;
+    width: 3px;
+    border-radius: 0 3px 3px 0;
+    background: var(--jute);
+}
+
+.sidebar-paddy .sidebar-menu .nav-link.active > .nav-icon {
+    color: var(--jute);
+}
+
+.sidebar-paddy .nav-treeview {
+    margin-left: .75rem;
+    border-left: 1px solid rgba(255, 255, 255, .12);
+}
+
+.sidebar-paddy .nav-header {
+    color: rgba(255, 255, 255, .5);
+}
+
+/* Cards: flat surfaces with a hairline edge; hierarchy from type, not shadows. */
+.card {
+    --bs-card-bg: var(--surface);
+    --bs-card-border-color: var(--line);
+    --bs-card-border-radius: var(--bs-border-radius-lg);
+    --bs-card-inner-border-radius: calc(var(--bs-border-radius-lg) - 1px);
+    --bs-card-cap-bg: transparent;
+    box-shadow: 0 1px 2px rgba(20, 54, 40, .04);
+}
+
+.card-header {
+    padding-block: .9rem;
+}
+
+.card-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+}
+
+/* Tables: quiet header, roomy rows. */
+.table {
+    --bs-table-bg: transparent;
+    --bs-table-hover-bg: rgba(var(--bs-primary-rgb), .04);
+}
+
+.table > thead > tr > th {
+    background: var(--bs-tertiary-bg);
+    color: var(--bs-secondary-color);
+    font-size: .875rem;
+    font-weight: 600;
+    border-bottom-width: 1px;
+    white-space: nowrap;
+}
+
+.table > :not(caption) > * > * {
+    padding: .7rem .85rem;
+}
+
+/* Buttons and inputs */
+.btn {
+    font-weight: 600;
+}
+
+.btn-primary {
+    --bs-btn-bg: var(--paddy);
+    --bs-btn-border-color: var(--paddy);
+    --bs-btn-hover-bg: var(--paddy-deep);
+    --bs-btn-hover-border-color: var(--paddy-deep);
+    --bs-btn-active-bg: var(--paddy-deep);
+    --bs-btn-active-border-color: var(--paddy-deep);
+    --bs-btn-disabled-bg: var(--paddy);
+    --bs-btn-disabled-border-color: var(--paddy);
+}
+
+.btn-outline-primary {
+    --bs-btn-color: var(--bs-primary);
+    --bs-btn-border-color: var(--bs-primary);
+    --bs-btn-hover-bg: var(--paddy);
+    --bs-btn-hover-border-color: var(--paddy);
+    --bs-btn-active-bg: var(--paddy-deep);
+    --bs-btn-active-border-color: var(--paddy-deep);
+}
+
+.btn-warning {
+    --bs-btn-color: #2b241c;
+    --bs-btn-bg: var(--jute);
+    --bs-btn-border-color: var(--jute);
+    --bs-btn-hover-color: #2b241c;
+    --bs-btn-hover-bg: #e6c464;
+    --bs-btn-hover-border-color: #e6c464;
+}
+
+.form-control,
+.form-select {
+    border-color: var(--line);
+}
+
+.form-control:focus,
+.form-select:focus {
+    border-color: var(--jute);
+    box-shadow: 0 0 0 .2rem var(--bs-focus-ring-color);
+}
+
+.page-link {
+    color: var(--bs-primary);
+}
+
+.active > .page-link,
+.page-link.active {
+    background: var(--paddy);
+    border-color: var(--paddy);
+}
+
+/* Figure tiles (dashboard, money position): a coloured rule says what kind of money it is. */
+.stat-tile {
+    position: relative;
+    height: 100%;
+    padding: 1rem 1.1rem 1rem 1.35rem;
+    border: 1px solid var(--line);
+    border-radius: var(--bs-border-radius-lg);
+    background: var(--surface);
+    overflow: hidden;
+}
+
+.stat-tile::before {
+    content: "";
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 5px;
+    background: var(--tone, var(--bs-primary));
+}
+
+.stat-tile__label {
+    display: flex;
+    gap: .5rem;
+    align-items: center;
+    color: var(--bs-secondary-color);
+    font-weight: 600;
+}
+
+.stat-tile__label .bi {
+    color: var(--tone, var(--bs-primary));
+    font-size: 1.15rem;
+}
+
+.stat-tile__amount {
+    margin-top: .35rem;
+    font-size: clamp(1.4rem, 1.1rem + 1vw, 2rem);
+    font-weight: 700;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+
+.stat-tile__note {
+    color: var(--bs-secondary-color);
+}
+
+.tone-danger.stat-tile .stat-tile__amount { color: var(--bs-danger); }
+
+/* Tones: what kind of money a tile or card shows. Same names in portal.css. */
+.tone-primary { --tone: var(--bs-primary); }
+.tone-success { --tone: var(--bs-success); }
+.tone-danger { --tone: var(--bs-danger); }
+.tone-warning { --tone: var(--bs-warning); }
+.tone-muted { --tone: var(--line); }
+
+/* Cards with a coloured top edge (money position, member account cards). */
+.edge-card {
+    border-top: 4px solid var(--tone, var(--bs-primary));
+}
+
+.edge-card > .list-group {
+    border-top: 1px solid var(--line);
+}
+
+.edge-card .list-group-item {
+    background: transparent;
+}
+
 /* Print: reports and statements print as plain pages (no sidebar, filters or buttons). */
 @media print {
     .app-sidebar,
@@ -223,4 +559,18 @@
     flex-direction: column;
     align-items: center;
     gap: 0.25rem;
+}
+
+/* Phones: keep the top bar inside the screen (long staff names, fullscreen button). */
+@media (max-width: 575.98px) {
+    .app-header .user-menu > .nav-link {
+        max-width: 7rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .app-header [data-lte-toggle="fullscreen"] {
+        display: none;
+    }
 }

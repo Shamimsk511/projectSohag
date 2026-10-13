@@ -1037,6 +1037,7 @@ return [
         'not_removable' => 'Only future holidays can be removed.',
     ],
     'site' => [
+        'created_by' => 'Created By:',
         'org_name' => 'Srijonshil Multipurpose',
         'tagline' => 'Small capital, big dreams',
         'language' => 'Language',

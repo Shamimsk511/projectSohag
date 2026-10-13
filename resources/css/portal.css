@@ -7,3 +7,12 @@
 .form-control {
     min-height: 48px;
 }
+
+/* Member account cards: coloured top edge (same class names as admin.css). */
+.tone-primary { --tone: var(--bs-primary); }
+.tone-success { --tone: var(--bs-success); }
+.tone-muted { --tone: var(--bs-border-color); }
+
+.edge-card {
+    border-top: 4px solid var(--tone, var(--bs-primary));
+}

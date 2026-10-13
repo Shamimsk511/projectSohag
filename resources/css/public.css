@@ -244,6 +244,7 @@ html:lang(bn) .step::before { content: counter(step, bengali); }
 .site-brand--footer { color: #fff; }
 .site-footer__small { font-size: .9rem; margin-left: auto; }
 .site-footer a { color: var(--jute); }
+.site-footer__credit { flex-basis: 100%; padding-top: .75rem; border-top: 1px solid rgba(255, 255, 255, .15); font-size: .9rem; }
 
 /* Login: photo panel + form */
 .login { display: grid; min-height: 100vh; }

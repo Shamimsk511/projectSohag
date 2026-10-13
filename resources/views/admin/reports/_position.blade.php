@@ -7,7 +7,7 @@
         [
             'title' => __('app.reports.position.cash'),
             'total' => $position['cash']['total'],
-            'class' => 'border-primary',
+            'tone' => 'primary',
             'lines' => [
                 [__('app.reports.position.office_cash'), $position['cash']['office'], route('admin.reports.cash-reconciliation')],
                 [__('app.reports.position.officers_cash'), $position['cash']['officers'], route('admin.cash-handovers.index')],
@@ -17,7 +17,7 @@
             'title' => __('app.reports.position.owed_to_us'),
             'total' => $position['owed_to_us']['loans'],
             'note' => __('app.reports.position.loan_count', ['count' => Numerals::localize((string) $position['owed_to_us']['count'])]),
-            'class' => 'border-success',
+            'tone' => 'success',
             'lines' => [
                 [__('app.reports.position.loans'), $position['owed_to_us']['loans'], route('admin.reports.outstanding')],
                 [__('app.reports.position.overdue'), $position['owed_to_us']['overdue'], route('admin.reports.outstanding', ['overdue' => 1])],
@@ -26,7 +26,7 @@
         [
             'title' => __('app.reports.position.we_owe'),
             'total' => $position['we_owe']['total'],
-            'class' => 'border-warning',
+            'tone' => 'warning',
             'lines' => [
                 [__('app.reports.position.savings'), $position['we_owe']['savings'], null],
                 [__('app.reports.position.fdr'), $position['we_owe']['fdr'], null],
@@ -35,7 +35,7 @@
         [
             'title' => __('app.reports.position.month', ['date' => Numerals::localize($month['from']->format('d/m/Y'))]),
             'total' => null,
-            'class' => 'border-secondary',
+            'tone' => 'muted',
             'lines' => [
                 [__('app.reports.position.received'), $month['received'], route('admin.reports.monthly', ['month' => $month['from']->format('Y-m')])],
                 [__('app.reports.position.paid_out'), $month['paid_out'], route('admin.reports.monthly', ['month' => $month['from']->format('Y-m')])],
@@ -48,7 +48,7 @@
 <div class="row g-3">
     @foreach ($sections as $section)
         <div class="col-md-6 col-xl-3">
-            <div class="card h-100 border-top border-3 {{ $section['class'] }}">
+            <div class="card h-100 edge-card tone-{{ $section['tone'] }}">
                 <div class="card-body pb-2">
                     <div class="fw-semibold">{{ $section['title'] }}</div>
                     @if ($section['total'])

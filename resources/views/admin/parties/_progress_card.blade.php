@@ -31,7 +31,7 @@
     ];
 @endphp
 <div class="col-md-6 col-xl-4">
-    <div @class(['card h-100 border-2', 'border-primary' => $account->isLoan() && $account->isActive(), 'border-success' => ! $account->isLoan() && $account->isActive(), 'opacity-75' => ! $account->isActive()])>
+    <div @class(['card h-100 edge-card', 'tone-primary' => $account->isLoan() && $account->isActive(), 'tone-success' => ! $account->isLoan() && $account->isActive(), 'tone-muted opacity-75' => ! $account->isActive()])>
         <div class="card-body">
             <div class="d-flex align-items-center gap-2 mb-2">
                 @if ($accountUrl)

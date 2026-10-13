@@ -11,19 +11,19 @@
 @endphp
     <div class="row g-3 mb-4">
         @foreach ([
-            ['label' => __('app.dash.to_collect'), 'amount' => $figures['expected'], 'class' => 'text-bg-primary', 'note' => null],
-            ['label' => __('app.dash.collected_tile'), 'amount' => $figures['collected'], 'class' => 'text-bg-success', 'note' => null],
-            ['label' => __('app.dash.not_paid'), 'amount' => $unpaid['amount'], 'class' => $unpaid['members'] > 0 ? 'text-bg-danger' : 'text-bg-light', 'note' => __('app.dash.members_count', ['count' => Numerals::localize((string) $unpaid['members'])])],
-            ['label' => __('app.dash.cash_in_hand'), 'amount' => $figures['cash_in_hand'], 'class' => 'text-bg-warning', 'note' => null],
+            ['label' => __('app.dash.to_collect'), 'amount' => $figures['expected'], 'tone' => 'primary', 'icon' => 'bi-calendar-check', 'note' => null],
+            ['label' => __('app.dash.collected_tile'), 'amount' => $figures['collected'], 'tone' => 'success', 'icon' => 'bi-check2-circle', 'note' => null],
+            ['label' => __('app.dash.not_paid'), 'amount' => $unpaid['amount'], 'tone' => $unpaid['members'] > 0 ? 'danger' : 'muted', 'icon' => 'bi-exclamation-circle', 'note' => __('app.dash.members_count', ['count' => Numerals::localize((string) $unpaid['members'])])],
+            ['label' => __('app.dash.cash_in_hand'), 'amount' => $figures['cash_in_hand'], 'tone' => 'warning', 'icon' => 'bi-wallet2', 'note' => null],
         ] as $tile)
             <div class="col-6 col-lg-3">
-                <div class="card h-100 {{ $tile['class'] }}"><div class="card-body">
-                    <div class="fs-6">{{ $tile['label'] }}</div>
-                    <div class="fs-2 fw-bold text-nowrap">{{ $money($tile['amount']) }}</div>
+                <div class="stat-tile tone-{{ $tile['tone'] }}">
+                    <div class="stat-tile__label"><i class="bi {{ $tile['icon'] }}" aria-hidden="true"></i>{{ $tile['label'] }}</div>
+                    <div class="stat-tile__amount">{{ $money($tile['amount']) }}</div>
                     @if ($tile['note'])
-                        <div>{{ $tile['note'] }}</div>
+                        <div class="stat-tile__note">{{ $tile['note'] }}</div>
                     @endif
-                </div></div>
+                </div>
             </div>
         @endforeach
     </div>

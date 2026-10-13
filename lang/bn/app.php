@@ -1034,6 +1034,7 @@ return [
         'not_removable' => 'শুধু ভবিষ্যতের ছুটি মোছা যায়।',
     ],
     'site' => [
+        'created_by' => 'Created By:',
         'org_name' => 'সৃজনশীল মাল্টিপারপাস',
         'tagline' => 'ছোট পুঁজি, বড় স্বপ্ন',
         'language' => 'ভাষা',
