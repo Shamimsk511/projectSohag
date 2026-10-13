@@ -2,20 +2,18 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\View\View;
 
 class HomeController extends Controller
 {
     /**
-     * Send the signed-in user to the area their role works in.
+     * Public homepage; a signed-in user also gets a link to their work area.
      */
-    public function __invoke(Request $request): RedirectResponse
+    public function __invoke(Request $request): View
     {
-        $route = $request->user()?->homeRoute();
-
-        abort_if($route === null, 403);
-
-        return redirect()->route($route);
+        return view('home', [
+            'workspaceRoute' => $request->user()?->homeRoute(),
+        ]);
     }
 }

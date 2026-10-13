@@ -23,13 +23,6 @@ class AdminLayoutTest extends TestCase
         $this->get('/admin')->assertRedirect('/login');
     }
 
-    public function test_login_page_uses_the_adminlte_auth_layout(): void
-    {
-        $this->get('/login')
-            ->assertOk()
-            ->assertSee('login-page', false);
-    }
-
     public function test_dashboard_renders_with_bundled_assets_only(): void
     {
         $this->actingAs(User::factory()->withRole(Role::Admin)->create())

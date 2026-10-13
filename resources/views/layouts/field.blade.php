@@ -9,6 +9,9 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="{{ __('app.field.app_name') }}">
     <link rel="manifest" href="/manifest.webmanifest">
+    <link rel="icon" href="/favicon.ico" sizes="any">
+    <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png">
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
     <title>@hasSection('title')@yield('title') | @endif{{ config('app.name') }}</title>
     @php($pinLock = request()->is('field', 'field/*'))
@@ -25,7 +28,7 @@
     @auth @sectionMissing('hide_logout') data-user-id="{{ auth()->id() }}" @endif @endauth
     @if ($pinLock) @auth @sectionMissing('hide_logout') data-pin-user="{{ auth()->id() }}" data-pin-name="{{ auth()->user()->name }}" @if ($pinFresh) data-pin-fresh-login @endif @endif @endauth @endif>
     <header class="navbar bg-body border-bottom px-3 d-print-none">
-        <span class="navbar-brand mb-0 h1 d-flex align-items-center gap-2"><img src="/icons/icon-192.png" width="32" height="32" alt="">{{ config('app.name') }}</span>
+        <span class="navbar-brand mb-0 h1 d-flex align-items-center gap-2"><img src="/icons/logo-mark.png" width="32" height="32" alt="">{{ config('app.name') }}</span>
         @sectionMissing('hide_logout')
             {{-- .js-logout: field.js clears the offline list before signing out. --}}
             <form method="POST" action="{{ route('logout') }}" class="js-logout">

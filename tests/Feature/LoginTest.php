@@ -44,23 +44,52 @@ class LoginTest extends TestCase
     }
 
     #[DataProvider('homeByRole')]
-    public function test_root_redirects_signed_in_user_to_the_role_home(Role $role, string $home): void
+    public function test_homepage_links_signed_in_user_to_the_role_home(Role $role, string $home): void
     {
         $this->actingAs(User::factory()->withRole($role)->create())
             ->get('/')
-            ->assertRedirect($home);
+            ->assertOk()
+            ->assertSee('href="'.url($home).'"', false);
     }
 
-    public function test_root_sends_guest_to_login(): void
+    public function test_guest_sees_the_public_homepage_with_a_staff_login_link(): void
     {
-        $this->get('/')->assertRedirect('/login');
+        $this->get('/')
+            ->assertOk()
+            ->assertSee(__('app.home.hero_title'))
+            ->assertSee('href="'.route('login').'"', false);
     }
 
-    public function test_signed_in_user_visiting_login_is_sent_home(): void
+    public function test_login_page_renders_without_the_admin_layout(): void
+    {
+        $this->get('/login')
+            ->assertOk()
+            ->assertSee(__('app.login.heading'))
+            ->assertSee('name="email"', false)
+            ->assertSee('name="password"', false);
+    }
+
+    public function test_signed_in_user_visiting_login_is_sent_to_the_role_home(): void
     {
         $this->actingAs(User::factory()->withRole(Role::FieldOfficer)->create())
             ->get('/login')
-            ->assertRedirect('/');
+            ->assertRedirect('/field');
+    }
+
+    public function test_visitor_can_switch_the_language_to_english_and_back(): void
+    {
+        $this->get('/')->assertSee('সৃজনশীল মাল্টিপারপাস');
+
+        $this->from('/')->get('/lang/en')->assertRedirect('/');
+        $this->get('/')->assertSee('Build your tomorrow with your own hands')->assertSee('<html lang="en">', false);
+
+        $this->get('/lang/bn');
+        $this->get('/')->assertSee('নিজের হাতে গড়ুন আগামী দিন');
+    }
+
+    public function test_unknown_language_is_not_found(): void
+    {
+        $this->get('/lang/fr')->assertNotFound();
     }
 
     public function test_user_without_a_role_cannot_sign_in(): void

@@ -143,7 +143,7 @@ class PermissionMatrixTest extends TestCase
      * Routes open to guests or to any signed-in user, not scoped by role.
      */
     private const OPEN = [
-        'home', 'login', 'logout', 'field.offline', 'portal.link',
+        'home', 'locale.switch', 'login', 'logout', 'field.offline', 'portal.link',
         'portal.start', 'portal.pin', 'portal.pin.check', 'portal.lock', 'portal.home', 'portal.pin.change', 'portal.pin.update',
         'portal.accounts.show', 'portal.receipts.show', 'portal.offline',
         'password.request', 'password.email', 'password.reset', 'password.update', 'password.confirm',

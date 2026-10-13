@@ -26,16 +26,19 @@ use App\Http\Controllers\Field\CollectionController;
 use App\Http\Controllers\Field\CollectionSyncController;
 use App\Http\Controllers\Field\PartyCollectionController;
 use App\Http\Controllers\HomeController;
+use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\Portal\AccessController as PortalLinkController;
 use App\Http\Controllers\Portal\PinController;
 use App\Http\Controllers\Portal\PortalController;
 use App\Http\Controllers\ReceiptController;
 use App\Http\Controllers\WhatsAppLogController;
+use App\Http\Middleware\SetLocale;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use Spatie\Permission\Middleware\RoleMiddleware;
 
-Route::get('/', HomeController::class)->middleware('auth')->name('home');
+Route::get('/', HomeController::class)->name('home');
+Route::get('lang/{locale}', LocaleController::class)->whereIn('locale', SetLocale::LOCALES)->name('locale.switch');
 
 Auth::routes(['register' => false]);
 

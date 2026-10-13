@@ -6,7 +6,7 @@ const CACHE_PREFIX = 'portal-shell-';
 const CACHE = CACHE_PREFIX + (new URL(self.location.href).searchParams.get('v') || 'unversioned');
 const OFFLINE_URL = '/portal/offline';
 const MANIFEST_URL = '/portal.webmanifest';
-const ICONS = ['/icons/icon-192.png', '/icons/icon-512.png', '/icons/apple-touch-icon.png'];
+const ICONS = ['/icons/icon-192.png', '/icons/icon-512.png', '/icons/apple-touch-icon.png', '/icons/logo-mark.png', '/icons/favicon-32x32.png', '/icons/favicon-16x16.png'];
 
 const isShellAsset = (url) => url.pathname.startsWith('/build/assets/') || url.pathname.startsWith('/icons/');
 

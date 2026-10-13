@@ -3,6 +3,7 @@
 use App\Http\Middleware\EnsurePortalUnlocked;
 use App\Http\Middleware\EnsureUserIsActive;
 use App\Http\Middleware\SecurityHeaders;
+use App\Http\Middleware\SetLocale;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -16,7 +17,8 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias(['portal.unlocked' => EnsurePortalUnlocked::class]);
-        $middleware->web(append: [EnsureUserIsActive::class, SecurityHeaders::class]);
+        $middleware->web(append: [SetLocale::class, EnsureUserIsActive::class, SecurityHeaders::class]);
+        $middleware->redirectUsersTo(fn (Request $request): string => route($request->user()?->homeRoute() ?? 'home'));
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
