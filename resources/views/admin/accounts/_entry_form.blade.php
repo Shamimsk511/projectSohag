@@ -6,6 +6,7 @@
         'amount' => __('app.transactions.amount_questions.'.$type->value),
         'submit' => __('app.transactions.submit_as.'.$type->value),
         'money' => $type->movesMoney(),
+        'schedule' => $type === $account->account_type->collectionType(),
     ]]);
     $current = $typeStrings[$selected] ?? $typeStrings->first();
 @endphp
@@ -53,7 +54,7 @@
         <label for="amount" class="form-label fw-semibold required" data-amount-label>{{ $current['amount'] }}</label>
         <div class="input-group input-group-lg">
             <span class="input-group-text">৳</span>
-            <input type="text" id="amount" name="amount" value="{{ old('amount') }}" inputmode="decimal" autocomplete="off" required
+            <input type="text" id="amount" name="amount" value="{{ $errors->hasBag('officeIncome') ? '' : old('amount') }}" inputmode="decimal" autocomplete="off" required
                    @class(['form-control account-amount-input', 'is-invalid' => $errors->has('amount')])>
             @error('amount')<div class="invalid-feedback">{{ $message }}</div>@enderror
         </div>
@@ -65,6 +66,21 @@
                           class="form-control-lg" required />
         </div>
     </div>
+
+    @if ($openSchedules->isNotEmpty())
+        <div class="mb-3" data-schedule-only @if (! $current['schedule']) hidden @endif>
+            <label for="schedule_id" class="form-label fw-semibold">{{ __('app.transactions.schedule') }}</label>
+            <select id="schedule_id" name="schedule_id" @class(['form-select', 'is-invalid' => $errors->has('schedule_id')]) @if (! $current['schedule']) disabled @endif>
+                <option value="">{{ __('app.transactions.schedule_none') }}</option>
+                @foreach ($openSchedules as $row)
+                    <option value="{{ $row->id }}" @selected((string) old('schedule_id') === (string) $row->id)>
+                        {{ \App\Support\Numerals::localize($row->due_date->format('d/m/Y')) }} · {{ $row->expected_amount->format() }}
+                    </option>
+                @endforeach
+            </select>
+            @error('schedule_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
+        </div>
+    @endif
 
     <fieldset class="mb-3" data-money-only @if (! $current['money']) hidden disabled @endif>
         <legend class="form-label fs-6 required">{{ __('app.transactions.payment_method') }}</legend>

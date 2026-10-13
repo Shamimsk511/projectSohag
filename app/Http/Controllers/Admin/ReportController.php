@@ -78,4 +78,31 @@ class ReportController extends Controller
             'report' => $reports->monthly($request->month()),
         ]);
     }
+
+    public function loanRegister(ReportPeriodRequest $request, ReportService $reports): View
+    {
+        return view('admin.reports.loan-register', [
+            'from' => $request->periodFrom(),
+            'to' => $request->periodTo(),
+            'report' => $reports->loanRegister($request->periodFrom(), $request->periodTo()),
+        ]);
+    }
+
+    public function withdrawalRegister(ReportPeriodRequest $request, ReportService $reports): View
+    {
+        return view('admin.reports.withdrawal-register', [
+            'from' => $request->periodFrom(),
+            'to' => $request->periodTo(),
+            'report' => $reports->withdrawalRegister($request->periodFrom(), $request->periodTo()),
+        ]);
+    }
+
+    public function dailyCashBook(ReportPeriodRequest $request, ReportService $reports): View
+    {
+        return view('admin.reports.daily-cash-book', [
+            'from' => $request->periodFrom(),
+            'to' => $request->periodTo(),
+            'report' => $reports->dailyCashBook($request->periodFrom(), $request->periodTo()),
+        ]);
+    }
 }

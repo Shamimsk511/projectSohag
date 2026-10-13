@@ -44,7 +44,7 @@
                     <dd class="col-6 text-end field-amount mb-1">{{ $schedule->expected_amount->format() }}</dd>
                     <dt class="col-6 fw-normal field-amount-label align-self-center">{{ __('app.field.full_due') }}</dt>
                     <dd class="col-6 text-end field-amount mb-1">{{ $row['remaining']->format() }}</dd>
-                    <dt class="col-6 fw-normal field-amount-label align-self-center">{{ __($schedule->account->isLoan() ? 'app.accounts.outstanding' : 'app.accounts.balance') }}</dt>
+                    <dt class="col-6 fw-normal field-amount-label align-self-center">{{ $schedule->account->isLoan() ? __('app.accounts.outstanding') : ($schedule->account->isFdr() ? __('app.accounts.remaining_payback') : __('app.accounts.balance')) }}</dt>
                     <dd class="col-6 text-end field-amount mb-1">{{ $row['accountRemaining']->format() }}</dd>
                 </dl>
                 <input type="hidden" name="items[{{ $index }}][schedule_id]" value="{{ $schedule->id }}">

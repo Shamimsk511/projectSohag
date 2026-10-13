@@ -78,7 +78,9 @@ class MonthlyReportTest extends TestCase
 
         $this->actingAs(User::factory()->withRole(Role::Accountant)->create())
             ->get(route('admin.reports.monthly'))
-            ->assertOk()->assertSee('৩২১.০০')->assertDontSee('৬৫৪.০০')->assertSee('daily-chart', false);
+            ->assertOk()->assertSee('৩২১.০০')->assertSee('daily-chart', false)
+            ->assertSee('৬৫৪.০০') // September's total is October's opening
+            ->assertSee('৯৭৫.০০'); // closing = 654 + 321
         $this->get(route('admin.reports.monthly', ['month' => '2026-09']))
             ->assertOk()->assertSee('৬৫৪.০০');
         $this->get(route('admin.reports.monthly', ['month' => 'soon']))->assertSessionHasErrors('month');

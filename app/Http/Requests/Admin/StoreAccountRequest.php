@@ -30,6 +30,9 @@ class StoreAccountRequest extends FormRequest
             'extra_amount' => ['nullable', new TakaAmount],
             'contract_amount' => ['nullable', new TakaAmount],
             'payment_method' => ['nullable', Rule::enum(PaymentMethod::class)],
+            'existing_loan' => ['nullable', 'boolean'],
+            'received_amount' => ['nullable', new TakaAmount],
+            'carried_as_of' => ['required_if:existing_loan,1', 'nullable', 'date_format:Y-m-d', 'before_or_equal:'.today(config('app.display_timezone'))->toDateString()],
             'opened_at' => ['required', 'date_format:Y-m-d', 'before_or_equal:'.today(config('app.display_timezone'))->toDateString()],
         ];
     }
@@ -45,6 +48,8 @@ class StoreAccountRequest extends FormRequest
             'extra_amount' => __('app.accounts.agreed_extra'),
             'contract_amount' => __('app.accounts.agreed_amount'),
             'payment_method' => __('app.transactions.payment_method'),
+            'received_amount' => __('app.accounts.received_before'),
+            'carried_as_of' => __('app.accounts.carried_as_of'),
             'opened_at' => __('app.accounts.opened_at'),
         ];
     }
@@ -55,7 +60,7 @@ class StoreAccountRequest extends FormRequest
     }
 
     /**
-     * Saving only: the optional agreed amount at the end of the term.
+     * Saving or FDR: the optional agreed amount (end-of-term amount or agreed payback).
      */
     public function agreedAmount(): ?Money
     {
@@ -70,6 +75,24 @@ class StoreAccountRequest extends FormRequest
     public function agreedExtra(): Money
     {
         return $this->filled('extra_amount') ? Money::fromTaka($this->string('extra_amount')->value()) : Money::zero();
+    }
+
+    /**
+     * Admin only (checked by AccountService): the loan existed before go-live.
+     */
+    public function isExistingLoan(): bool
+    {
+        return $this->accountType() === AccountType::Loan && $this->boolean('existing_loan');
+    }
+
+    public function receivedBefore(): Money
+    {
+        return $this->filled('received_amount') ? Money::fromTaka($this->string('received_amount')->value()) : Money::zero();
+    }
+
+    public function carriedAsOf(): Carbon
+    {
+        return Carbon::createFromFormat('Y-m-d', $this->string('carried_as_of')->value()) ?: today();
     }
 
     public function paymentMethod(): PaymentMethod

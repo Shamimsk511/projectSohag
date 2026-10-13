@@ -11,7 +11,7 @@ A member places money with the NGO (lump sum, installments, or several posts) an
 - `investment_deposit`: in, cash, receipt, any number of posts, no cap.
 - `investment_return`: out, cash, no receipt, allowed before maturity. Needs `contract_amount`; total returned (effective rows) must be <= `contract_amount`. Not capped by the deposited total.
 - Both become recordable and are reversible. Reversing a deposit has no balance check (held may go negative by design). Reversing a return is always allowed.
-- Computed figures only: deposited, agreed payback, paid back, remaining payback = contract - returned, held = deposited - returned (no clamp).
+- Computed figures only: deposited, agreed payback, paid back, remaining payback = (contract, or deposited when none is set) - returned, held = deposited - returned (no clamp).
 - Close: remaining payback must be 0, else `limits.override` + reason (existing rule shape).
 - Neutral wording: "agreed payback", never profit or rate.
 

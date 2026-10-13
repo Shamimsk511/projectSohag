@@ -1,5 +1,5 @@
 /**
- * Account pages: contract amount label per account type, action sections, entry form labels per
+ * Account pages: contract amount label per account type (loan, saving agreed amount, FDR agreed payback), action sections, entry form labels per
  * type, weekday choices only for daily collection plans, plan term -> end date + estimated total
  * (display only; the server stores what is posted), confirm before posting/closing, no double posts.
  */
@@ -19,11 +19,38 @@ function initTypeToggle(form) {
         });
     };
 
+    const existing = form.querySelector('input[name="existing_loan"]');
+    const carriedFields = form.querySelector('[data-carried-fields]');
+    const newLoanOnly = form.querySelector('[data-new-loan-only]');
+
+    /** An existing loan carries book entries: no payment method, plus what was received before. */
+    const syncExisting = () => {
+        const isExisting = Boolean(existing?.checked);
+        if (carriedFields) {
+            toggle(carriedFields, isExisting);
+            carriedFields.querySelector('input[name="carried_as_of"]').required = isExisting;
+        }
+        newLoanOnly.hidden = isExisting;
+        newLoanOnly.disabled = isExisting;
+    };
+
     const sync = () => {
-        const isLoan = form.querySelector('input[name="account_type"]:checked')?.value === 'loan';
+        const type = form.querySelector('input[name="account_type"]:checked')?.value;
+        const isLoan = type === 'loan';
         toggle(loanFields, isLoan);
         toggle(savingFields, !isLoan);
+        const agreedLabel = savingFields.querySelector('label[for="contract_amount"]');
+        if (agreedLabel) {
+            agreedLabel.textContent = savingFields.dataset[type === 'fdr' ? 'labelFdr' : 'labelSaving'];
+        }
+        const agreedHint = savingFields.querySelector('.form-text');
+        if (agreedHint) {
+            agreedHint.textContent = savingFields.dataset[type === 'fdr' ? 'hintFdr' : 'hintSaving'];
+        }
         principal.required = isLoan;
+        if (isLoan) {
+            syncExisting();
+        }
     };
 
     /** Display only; the server adds principal and extra again. */
@@ -33,6 +60,7 @@ function initTypeToggle(form) {
     };
 
     form.querySelectorAll('input[name="account_type"]').forEach((radio) => radio.addEventListener('change', sync));
+    existing?.addEventListener('change', syncExisting);
     [principal, extra].forEach((input) => input.addEventListener('input', showTotal));
     sync();
     showTotal();
@@ -132,6 +160,7 @@ function initEntryForm(form) {
     const types = JSON.parse(form.dataset.types);
     const moneyFields = form.querySelector('[data-money-only]');
     const moneyFallback = form.querySelector('[data-money-fallback]');
+    const scheduleField = form.querySelector('[data-schedule-only]');
 
     const sync = () => {
         const type = form.querySelector('input[name="type"]:checked, input[name="type"][type="hidden"]')?.value;
@@ -148,6 +177,10 @@ function initEntryForm(form) {
         moneyFields.hidden = !strings.money;
         moneyFields.disabled = !strings.money;
         moneyFallback.disabled = strings.money;
+        if (scheduleField) {
+            scheduleField.hidden = !strings.schedule;
+            scheduleField.querySelector('select').disabled = !strings.schedule;
+        }
     };
 
     form.querySelectorAll('input[name="type"]').forEach((radio) => radio.addEventListener('change', sync));

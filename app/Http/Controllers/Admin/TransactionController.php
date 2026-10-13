@@ -29,7 +29,7 @@ class TransactionController extends Controller
     {
         $this->transactions->reverse($transaction, $request->string('reason')->value(), $this->actor());
 
-        $redirect = $transaction->account_id
+        $redirect = $transaction->account_id && ! $transaction->type->isOffice()
             ? redirect()->route('admin.accounts.statement', $transaction->account_id)
             : redirect()->back();
 

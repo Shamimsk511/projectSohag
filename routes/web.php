@@ -9,6 +9,8 @@ use App\Http\Controllers\Admin\DailyClosingController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\HolidayController;
 use App\Http\Controllers\Admin\OfficeEntryController;
+use App\Http\Controllers\Admin\OfficeHeadController;
+use App\Http\Controllers\Admin\OpeningBalanceController;
 use App\Http\Controllers\Admin\PartyAssignmentController;
 use App\Http\Controllers\Admin\PartyController;
 use App\Http\Controllers\Admin\PartyPhotoUploadController;
@@ -34,6 +36,7 @@ Auth::routes(['register' => false]);
 Route::middleware(['auth', RoleMiddleware::using(Role::names(Role::office()))])
     ->prefix('admin')->name('admin.')->group(function () {
         Route::get('/', DashboardController::class)->name('dashboard');
+        Route::get('dashboard/live', [DashboardController::class, 'live'])->name('dashboard.live');
         Route::get('search', SearchController::class)->name('search');
         Route::get('reports/daily-collection', [ReportController::class, 'dailyCollection'])->name('reports.daily-collection');
         Route::get('reports/officer-performance', [ReportController::class, 'officerPerformance'])->name('reports.officer-performance');
@@ -41,6 +44,9 @@ Route::middleware(['auth', RoleMiddleware::using(Role::names(Role::office()))])
         Route::get('reports/missed-partial', [ReportController::class, 'missedPartial'])->name('reports.missed-partial');
         Route::get('reports/cash-reconciliation', [ReportController::class, 'cashReconciliation'])->name('reports.cash-reconciliation');
         Route::get('reports/monthly', [ReportController::class, 'monthly'])->name('reports.monthly');
+        Route::get('reports/loan-register', [ReportController::class, 'loanRegister'])->name('reports.loan-register');
+        Route::get('reports/withdrawal-register', [ReportController::class, 'withdrawalRegister'])->name('reports.withdrawal-register');
+        Route::get('reports/daily-cash-book', [ReportController::class, 'dailyCashBook'])->name('reports.daily-cash-book');
         Route::resource('users', UserController::class)->except(['show', 'destroy']);
         Route::resource('areas', AreaController::class)->except(['show', 'destroy']);
         Route::get('parties/data', [PartyController::class, 'data'])->name('parties.data');
@@ -65,8 +71,12 @@ Route::middleware(['auth', RoleMiddleware::using(Role::names(Role::office()))])
         Route::post('accounts/{account}/transactions', [TransactionController::class, 'store'])->name('accounts.transactions.store');
         Route::get('office-entries', [OfficeEntryController::class, 'index'])->name('office-entries.index');
         Route::post('office-entries', [OfficeEntryController::class, 'store'])->name('office-entries.store');
+        Route::post('accounts/{account}/office-income', [OfficeEntryController::class, 'storeForAccount'])->name('accounts.office-income.store');
+        Route::resource('office-heads', OfficeHeadController::class)->except(['show', 'destroy']);
         Route::resource('cash-handovers', CashHandoverController::class)->only(['index', 'store']);
         Route::resource('daily-closings', DailyClosingController::class)->only(['index', 'store']);
+        Route::get('opening-cash', [OpeningBalanceController::class, 'index'])->name('opening-cash.index');
+        Route::post('opening-cash', [OpeningBalanceController::class, 'store'])->name('opening-cash.store');
         Route::get('settings', [SettingController::class, 'edit'])->name('settings.edit');
         Route::put('settings', [SettingController::class, 'update'])->name('settings.update');
         Route::get('transactions/{transaction}/receipt', [ReceiptController::class, 'show'])->name('transactions.receipt');

@@ -9,6 +9,7 @@ use App\Exceptions\LedgerRuleViolation;
 use App\Models\Account;
 use App\Models\CollectionSchedule;
 use App\Models\DailyClosing;
+use App\Models\OfficeHead;
 use App\Models\Transaction;
 use App\Models\User;
 use App\Support\TransactionData;
@@ -91,6 +92,7 @@ class TransactionService
                 'party_id' => $original->party_id,
                 'field_officer_id' => $original->field_officer_id,
                 'schedule_id' => $original->schedule_id,
+                'office_head_id' => $original->office_head_id,
                 'type' => TransactionType::Reversal,
                 'amount' => $original->amount,
                 'payment_method' => $original->payment_method,
@@ -120,8 +122,18 @@ class TransactionService
             $this->reject('type', 'unsupported_type');
         }
 
-        if ($type->accountType() !== $account?->account_type) {
+        if (! $type->isOffice() && $type->accountType() !== $account?->account_type) {
             $this->reject('account_id', 'account_mismatch');
+        }
+
+        $head = $data->officeHead ? OfficeHead::query()->find($data->officeHead->id) : null;
+
+        if ($data->officeHead && (! $type->isOffice() || $head === null || $head->kind !== $type)) {
+            $this->reject('office_head_id', 'head_mismatch');
+        }
+
+        if ($head && ! $head->isActive()) {
+            $this->reject('office_head_id', 'head_inactive');
         }
 
         $schedule = $data->schedule ? $this->lockSchedule($data->schedule->id) : null;
@@ -163,6 +175,25 @@ class TransactionService
             $this->reject('type', 'opening_not_first');
         }
 
+        if ($type->isCarriedInLoan() && ! $actor->can(Permission::SetOpeningBalances->value)) {
+            $this->reject('type', 'opening_forbidden');
+        }
+
+        if ($account && $type === TransactionType::LoanOpeningDisbursement && $this->ledger->hasEntries($account)) {
+            $this->reject('type', 'opening_not_first');
+        }
+
+        if ($account && $type === TransactionType::LoanOpeningReceived) {
+            if (! $this->ledger->hasEffectiveOfType($account, TransactionType::LoanOpeningDisbursement)
+                || $this->ledger->hasEffectiveOfType($account, TransactionType::LoanCollection)) {
+                $this->reject('type', 'opening_not_first');
+            }
+
+            if ($data->amount->greaterThan($this->ledger->loanOutstanding($account))) {
+                $this->reject('amount', 'exceeds_outstanding');
+            }
+        }
+
         if ($account && $type === TransactionType::SavingMaturityCredit) {
             if ($account->contract_amount === null) {
                 $this->reject('type', 'no_agreed_amount');
@@ -170,6 +201,16 @@ class TransactionService
 
             if ($this->ledger->savingCredited($account)->plus($data->amount)->greaterThan($account->contract_amount)) {
                 $this->reject('amount', 'exceeds_agreed');
+            }
+        }
+
+        if ($account && $type === TransactionType::InvestmentReturn) {
+            if ($account->contract_amount === null) {
+                $this->reject('type', 'no_agreed_payback');
+            }
+
+            if ($this->ledger->fdrReturned($account)->plus($data->amount)->greaterThan($account->contract_amount)) {
+                $this->reject('amount', 'exceeds_agreed_payback');
             }
         }
 
@@ -191,11 +232,12 @@ class TransactionService
             'party_id' => $account?->party_id,
             'field_officer_id' => $data->fieldOfficer?->id,
             'schedule_id' => $schedule?->id,
+            'office_head_id' => $head?->id,
             'type' => $type,
             'amount' => $data->amount,
             'payment_method' => $type->movesMoney() ? $data->paymentMethod : null,
             'reference' => $data->reference,
-            'receipt_no' => $type->issuesReceipt() ? $this->receiptNumber($data->date->format('Ym')) : null,
+            'receipt_no' => $type->issuesReceipt() || ($type === TransactionType::OfficeIncome && $account) ? $this->receiptNumber($data->date->format('Ym')) : null,
             'description' => $data->description,
             'override_reason' => $overridden ? trim((string) $data->overrideReason) : null,
             'transaction_date' => $date,

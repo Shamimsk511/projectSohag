@@ -20,7 +20,7 @@
         <dd class="col-6 text-end field-amount mb-1">{{ $schedule->expected_amount->format() }}</dd>
         <dt class="col-6 fw-normal field-amount-label align-self-center">{{ __('app.field.collected_so_far') }}</dt>
         <dd class="col-6 text-end field-amount mb-1">{{ $collected->format() }}</dd>
-        <dt class="col-6 fw-normal field-amount-label align-self-center">{{ __($schedule->account->isLoan() ? 'app.accounts.outstanding' : 'app.accounts.balance') }}</dt>
+        <dt class="col-6 fw-normal field-amount-label align-self-center">{{ $schedule->account->isLoan() ? __('app.accounts.outstanding') : ($schedule->account->isFdr() ? __('app.accounts.remaining_payback') : __('app.accounts.balance')) }}</dt>
         <dd class="col-6 text-end field-amount mb-1">{{ $accountRemaining->format() }}</dd>
     </dl>
 

@@ -5,6 +5,7 @@ namespace App\Http\Requests\Admin;
 use App\Enums\PaymentMethod;
 use App\Enums\TransactionType;
 use App\Models\Account;
+use App\Models\CollectionSchedule;
 use App\Models\Transaction;
 use App\Rules\TakaAmount;
 use App\Support\Money;
@@ -15,7 +16,7 @@ use Illuminate\Validation\Rule;
 use LogicException;
 
 /**
- * Office entry on one account. Balance, date and account-state rules are checked by TransactionService.
+ * Office entry on one account, optionally settling one of its collection rows. Balance, date and account-state rules are checked by TransactionService.
  */
 class StoreTransactionRequest extends FormRequest
 {
@@ -37,6 +38,7 @@ class StoreTransactionRequest extends FormRequest
             'amount' => ['required', new TakaAmount],
             'transaction_date' => ['required', 'date_format:Y-m-d'],
             'payment_method' => ['required', Rule::enum(PaymentMethod::class)],
+            'schedule_id' => ['nullable', 'integer', Rule::exists('collection_schedules', 'id')],
             'reference' => ['nullable', 'string', 'max:100'],
             'description' => ['nullable', 'string', 'max:500'],
         ];
@@ -52,6 +54,7 @@ class StoreTransactionRequest extends FormRequest
             'amount' => __('app.transactions.amount'),
             'transaction_date' => __('app.transactions.date'),
             'payment_method' => __('app.transactions.payment_method'),
+            'schedule_id' => __('app.transactions.schedule'),
             'reference' => __('app.transactions.reference'),
             'description' => __('app.transactions.description'),
         ];
@@ -67,6 +70,7 @@ class StoreTransactionRequest extends FormRequest
             paymentMethod: PaymentMethod::from($this->string('payment_method')->value()),
             reference: $this->validated('reference'),
             description: $this->validated('description'),
+            schedule: $this->filled('schedule_id') ? CollectionSchedule::query()->find($this->integer('schedule_id')) : null,
         );
     }
 

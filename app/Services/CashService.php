@@ -82,7 +82,7 @@ class CashService
     {
         $isOfficerCash = $collection->field_officer_id !== null
             && $collection->payment_method === PaymentMethod::Cash
-            && in_array($collection->type, [TransactionType::LoanCollection, TransactionType::SavingDeposit], true);
+            && in_array($collection->type, TransactionType::collectionTypes(), true);
 
         if (! $isOfficerCash || $this->settings->cashHandoverMode() !== CashHandoverMode::Automatic) {
             return;
@@ -132,7 +132,7 @@ class CashService
     public function closeDueDays(): int
     {
         $last = Carbon::parse($this->today()->subDays(2)->toDateString());
-        $first = Transaction::query()->min('transaction_date');
+        $first = Transaction::query()->whereNotIn('type', TransactionType::openingTypes())->min('transaction_date');
         $from = $first === null ? $last->copy() : Carbon::parse($first)->startOfDay();
         if ($from->greaterThan($last)) {
             return 0;

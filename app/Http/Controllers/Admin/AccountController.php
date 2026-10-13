@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Enums\AccountType;
+use App\Enums\Permission;
 use App\Enums\ScheduleStatus;
 use App\Enums\TransactionType;
 use App\Http\Controllers\Controller;
@@ -12,10 +13,12 @@ use App\Http\Requests\Admin\CloseAccountRequest;
 use App\Http\Requests\Admin\StoreAccountRequest;
 use App\Models\Account;
 use App\Models\CollectionSchedule;
+use App\Models\OfficeHead;
 use App\Models\Party;
 use App\Models\Transaction;
 use App\Services\AccountService;
 use App\Services\LedgerService;
+use App\Support\Money;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\View\View;
@@ -32,14 +35,24 @@ class AccountController extends Controller
         Gate::authorize('view', $party);
         Gate::authorize('create', Account::class);
 
-        return view('admin.accounts.create', ['party' => $party, 'types' => AccountType::cases()]);
+        return view('admin.accounts.create', [
+            'party' => $party,
+            'types' => AccountType::cases(),
+            'canCarryIn' => Gate::allows(Permission::SetOpeningBalances->value),
+        ]);
     }
 
     public function store(StoreAccountRequest $request, Party $party): RedirectResponse
     {
-        $account = $request->accountType() === AccountType::Loan
-            ? $this->accounts->openLoan($party, $request->principalAmount(), $request->agreedExtra(), $request->paymentMethod(), $request->openedAt(), $this->actor())
-            : $this->accounts->openSaving($party, $request->agreedAmount(), $request->openedAt(), $this->actor());
+        $account = match (true) {
+            $request->isExistingLoan() => $this->accounts->openExistingLoan(
+                $party, $request->principalAmount(), $request->agreedExtra(), $request->receivedBefore(),
+                $request->openedAt(), $request->carriedAsOf(), $this->actor(),
+            ),
+            $request->accountType() === AccountType::Loan => $this->accounts->openLoan($party, $request->principalAmount(), $request->agreedExtra(), $request->paymentMethod(), $request->openedAt(), $this->actor()),
+            $request->accountType() === AccountType::Fdr => $this->accounts->openFdr($party, $request->agreedAmount(), $request->openedAt(), $this->actor()),
+            default => $this->accounts->openSaving($party, $request->agreedAmount(), $request->openedAt(), $this->actor()),
+        };
 
         return redirect()->route('admin.accounts.show', $account)->with('status', __('app.accounts.opened'));
     }
@@ -53,13 +66,26 @@ class AccountController extends Controller
 
         return view('admin.accounts.show', [
             'account' => $account,
-            'received' => $account->isLoan() ? $ledger->loanReceived($account) : $ledger->savingCredited($account),
+            'received' => match ($account->account_type) {
+                AccountType::Loan => $ledger->loanReceived($account),
+                AccountType::Fdr => $ledger->fdrDeposited($account),
+                AccountType::Saving => $ledger->savingCredited($account),
+            },
+            'paidBack' => $account->isFdr() ? $ledger->fdrReturned($account) : Money::zero(),
             'agreedExtra' => $account->isLoan() ? $ledger->agreedExtra($account) : null,
             'entryTypes' => $this->entryTypes($account, $ledger),
+            'openSchedules' => $account->schedules()
+                ->whereIn('status', ScheduleStatus::collectable())
+                ->where('due_date', '<', today(config('app.display_timezone'))->addDay()->toDateString())
+                ->orderBy('due_date')->limit(30)->get(),
             'remaining' => $ledger->remainingBalance($account),
             'canPost' => Gate::allows('create', [Transaction::class, $account]),
             'canManage' => Gate::allows('update', $account),
             'canSchedule' => Gate::allows('create', CollectionSchedule::class),
+            'canIncome' => Gate::allows('createOfficeIncome', [Transaction::class, $account]),
+            'incomeHeads' => OfficeHead::query()->active()->where('kind', TransactionType::OfficeIncome)->orderBy('name')->get(),
+            'clientIncome' => Transaction::query()->where('account_id', $account->id)->where('type', TransactionType::OfficeIncome)
+                ->with(['officeHead', 'reversal'])->latest('transaction_date')->latest('id')->limit(5)->get(),
             'upcoming' => $account->schedules()->with('fieldOfficer')
                 ->where(fn ($query) => $query->where('due_date', '>=', $today)
                     ->orWhereIn('status', [ScheduleStatus::Missed, ScheduleStatus::PartiallyPaid]))
@@ -82,7 +108,7 @@ class AccountController extends Controller
             $account->account_type->entryTypes(),
             fn (TransactionType $type): bool => match ($type) {
                 TransactionType::SavingOpeningBalance => ! $hasEntries,
-                TransactionType::SavingMaturityCredit => $account->contract_amount !== null,
+                TransactionType::SavingMaturityCredit, TransactionType::InvestmentReturn => $account->contract_amount !== null,
                 default => true,
             },
         ));

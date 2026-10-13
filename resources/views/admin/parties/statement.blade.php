@@ -55,9 +55,9 @@
                                         <span class="badge text-bg-secondary">{{ __('app.accounts.closed') }}</span>
                                     @endunless
                                 </td>
-                                <td class="text-nowrap">{{ $account->isLoan() ? $account->contract_amount?->format() : '' }}</td>
+                                <td class="text-nowrap">{{ $account->isLoan() || $account->isFdr() ? $account->contract_amount?->format() : '' }}</td>
                                 <td class="text-end text-nowrap">{{ $item['statement']->closing->format() }}</td>
-                                <td class="text-end text-nowrap">{{ $account->isLoan() ? $item['remaining']->format() : '' }}</td>
+                                <td class="text-end text-nowrap">{{ $account->isLoan() || $account->isFdr() ? $item['remaining']->format() : '' }}</td>
                             </tr>
                         @endforeach
                     </tbody>

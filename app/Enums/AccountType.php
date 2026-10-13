@@ -6,6 +6,7 @@ enum AccountType: string
 {
     case Saving = 'saving';
     case Loan = 'loan';
+    case Fdr = 'fdr';
 
     /**
      * Account number prefix: SV-000001, LN-000001.
@@ -15,6 +16,7 @@ enum AccountType: string
         return match ($this) {
             self::Saving => 'SV',
             self::Loan => 'LN',
+            self::Fdr => 'FD',
         };
     }
 
@@ -33,7 +35,8 @@ enum AccountType: string
                 TransactionType::SavingOpeningBalance,
                 TransactionType::SavingMaturityCredit,
             ],
-            self::Loan => [TransactionType::LoanDisbursement],
+            self::Loan => [TransactionType::LoanDisbursement, TransactionType::LoanCollection],
+            self::Fdr => [TransactionType::InvestmentDeposit, TransactionType::InvestmentReturn],
         };
     }
 
@@ -45,6 +48,7 @@ enum AccountType: string
         return match ($this) {
             self::Saving => TransactionType::SavingDeposit,
             self::Loan => TransactionType::LoanCollection,
+            self::Fdr => TransactionType::InvestmentDeposit,
         };
     }
 }

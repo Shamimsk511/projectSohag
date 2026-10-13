@@ -39,6 +39,15 @@ class AccountService
     }
 
     /**
+     * Open an FDR account with the next FD- number; `$agreedPayback` is the optional amount the
+     * office agreed to pay back (set later through an adjustment when unknown now).
+     */
+    public function openFdr(Party $party, ?Money $agreedPayback, Carbon $openedAt, User $actor): Account
+    {
+        return DB::transaction(fn (): Account => $this->create($party, AccountType::Fdr, $agreedPayback, $openedAt, $actor));
+    }
+
+    /**
      * Open a loan with the next LN- number and hand over the principal in the same step. The contract
      * amount is principal plus the agreed extra, both typed by the office; nothing is derived. A
      * rejected disbursement (closed day, ...) rolls the account back too.
@@ -55,6 +64,44 @@ class AccountService
                 account: $account,
                 paymentMethod: $paymentMethod,
             ), $actor);
+
+            return $account;
+        });
+    }
+
+    /**
+     * Open a loan that existed before go-live. The account starts on its original date with the
+     * principal as a book entry; what was already received is a second book entry dated `$asOf`.
+     * No cash moves and no receipt is issued. Only those who may set opening balances.
+     */
+    public function openExistingLoan(Party $party, Money $principal, Money $agreedExtra, Money $alreadyReceived, Carbon $openedAt, Carbon $asOf, User $actor): Account
+    {
+        if (! $actor->can(Permission::SetOpeningBalances->value)) {
+            throw ValidationException::withMessages(['existing_loan' => __('app.transactions.opening_forbidden')]);
+        }
+
+        if ($asOf->lt($openedAt) || $asOf->gt(today(config('app.display_timezone')))) {
+            throw ValidationException::withMessages(['carried_as_of' => __('app.accounts.carried_as_of_range')]);
+        }
+
+        return DB::transaction(function () use ($party, $principal, $agreedExtra, $alreadyReceived, $openedAt, $asOf, $actor): Account {
+            $account = $this->create($party, AccountType::Loan, $principal->plus($agreedExtra), $openedAt, $actor);
+
+            $this->transactions->record(new TransactionData(
+                type: TransactionType::LoanOpeningDisbursement,
+                amount: $principal,
+                date: $openedAt,
+                account: $account,
+            ), $actor);
+
+            if ($alreadyReceived->isPositive()) {
+                $this->transactions->record(new TransactionData(
+                    type: TransactionType::LoanOpeningReceived,
+                    amount: $alreadyReceived,
+                    date: $asOf,
+                    account: $account,
+                ), $actor);
+            }
 
             return $account;
         });
@@ -81,7 +128,7 @@ class AccountService
     }
 
     /**
-     * Change a loan's contract amount or set/change a saving's agreed amount, keeping the old value,
+     * Change a loan's contract amount or set/change a saving's agreed amount or an FDR's agreed payback, keeping the old value,
      * reason and actor in account_adjustments.
      */
     public function adjustContractAmount(Account $account, Money $newAmount, string $reason, User $actor): AccountAdjustment
@@ -111,7 +158,7 @@ class AccountService
     }
 
     /**
-     * Close an account today. A non-zero loan outstanding or saving balance needs the override
+     * Close an account today. A non-zero loan outstanding, FDR remaining payback or saving balance needs the override
      * permission (admin) and a reason.
      */
     public function close(Account $account, ?string $reason, User $actor): Account

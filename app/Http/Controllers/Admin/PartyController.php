@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Enums\AccountType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\PartyStatementRequest;
 use App\Http\Requests\Admin\PartyTableRequest;
@@ -88,7 +89,7 @@ class PartyController extends Controller
             'party' => $party,
             'balances' => $balances,
             'totals' => [
-                'saving' => Money::fromPoisha($party->accounts->reject->isLoan()->sum(fn (Account $account): int => $balances[$account->id]->poisha)),
+                'saving' => Money::fromPoisha($party->accounts->filter(fn (Account $account): bool => $account->account_type === AccountType::Saving)->sum(fn (Account $account): int => $balances[$account->id]->poisha)),
                 'loan' => Money::fromPoisha($party->accounts->filter->isLoan()->sum(fn (Account $account): int => $balances[$account->id]->poisha)),
             ],
             'currentAssignment' => $party->assignments->first(fn (PartyAssignment $assignment): bool => $assignment->isActive()),

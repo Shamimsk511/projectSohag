@@ -59,6 +59,12 @@ class AppServiceProvider extends ServiceProvider
                 'icon' => 'bi bi-cash-coin',
                 'can' => [Permission::PostOfficeEntries->value, Permission::ViewAllReports->value],
             ], [
+                'text' => __('app.office_heads.title'),
+                'route' => 'admin.office-heads.index',
+                'active' => ['admin/office-heads*'],
+                'icon' => 'bi bi-tags',
+                'can' => Permission::PostOfficeEntries->value,
+            ], [
                 'text' => __('app.menu.cash'),
                 'icon' => 'bi bi-wallet2',
                 'submenu' => [[
@@ -71,6 +77,11 @@ class AppServiceProvider extends ServiceProvider
                     'route' => 'admin.daily-closings.index',
                     'icon' => 'bi bi-lock',
                     'can' => [Permission::CloseDays->value, Permission::ViewAllReports->value],
+                ], [
+                    'text' => __('app.opening_cash.title'),
+                    'route' => 'admin.opening-cash.index',
+                    'icon' => 'bi bi-box-arrow-in-right',
+                    'can' => Permission::SetOpeningBalances->value,
                 ], [
                     'text' => __('app.reports.cash_reconciliation.title'),
                     'route' => 'admin.reports.cash-reconciliation',
@@ -107,6 +118,24 @@ class AppServiceProvider extends ServiceProvider
                 'route' => 'admin.reports.monthly',
                 'active' => ['admin/reports/monthly*'],
                 'icon' => 'bi bi-bar-chart-line',
+                'can' => Permission::ViewAllReports->value,
+            ], [
+                'text' => __('app.reports.loan_register.title'),
+                'route' => 'admin.reports.loan-register',
+                'active' => ['admin/reports/loan-register*'],
+                'icon' => 'bi bi-cash-coin',
+                'can' => Permission::ViewAllReports->value,
+            ], [
+                'text' => __('app.reports.withdrawal_register.title'),
+                'route' => 'admin.reports.withdrawal-register',
+                'active' => ['admin/reports/withdrawal-register*'],
+                'icon' => 'bi bi-box-arrow-up',
+                'can' => Permission::ViewAllReports->value,
+            ], [
+                'text' => __('app.reports.cash_book.title'),
+                'route' => 'admin.reports.daily-cash-book',
+                'active' => ['admin/reports/daily-cash-book*'],
+                'icon' => 'bi bi-journal-text',
                 'can' => Permission::ViewAllReports->value,
             ], [
                 'text' => __('app.menu.settings'),

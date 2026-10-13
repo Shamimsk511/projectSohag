@@ -3,7 +3,7 @@
     @csrf
     <div class="mb-3">
         <label for="contract_amount" class="form-label required">
-            {{ __($account->isLoan() ? 'app.accounts.new_contract_amount' : 'app.accounts.new_agreed_amount') }}
+            {{ __($account->isLoan() ? 'app.accounts.new_contract_amount' : ($account->isFdr() ? 'app.accounts.agreed_payback' : 'app.accounts.new_agreed_amount')) }}
         </label>
         <div class="input-group input-group-lg">
             <span class="input-group-text">৳</span>
@@ -13,7 +13,7 @@
             @error('contract_amount')<div class="invalid-feedback">{{ $message }}</div>@enderror
         </div>
         @unless ($account->isLoan())
-            <div id="contract_amount-hint" class="form-text">{{ __('app.accounts.agreed_amount_hint') }}</div>
+            <div id="contract_amount-hint" class="form-text">{{ __($account->isFdr() ? 'app.accounts.agreed_payback_hint' : 'app.accounts.agreed_amount_hint') }}</div>
         @endunless
     </div>
     <div class="mb-3">

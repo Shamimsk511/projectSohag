@@ -13,12 +13,14 @@
         // Right-hand sections, in order; only those this user may use. The first one opens unless a form error points elsewhere.
         $sections = $account->isActive() ? array_filter([
             'entry' => $canPost,
+            'income' => $canIncome,
             'plan' => $canManage,
             'date' => $canSchedule,
             'amount' => $canManage,
             'close' => $canManage,
         ]) : [];
         $errorSection = match (true) {
+            $errors->officeIncome->any() => 'income',
             $errors->hasAny(['type', 'amount', 'transaction_date', 'payment_method', 'reference', 'description', 'account_id']) => 'entry',
             $errors->hasAny(['frequency', 'installment_amount', 'weekdays', 'starts_on', 'ends_on', 'duration', 'duration_unit']) => 'plan',
             $errors->hasAny(['due_date', 'expected_amount', 'notes']) => 'date',
@@ -70,7 +72,7 @@
                         </div>
                         <div class="col-md-5">
                             <div class="account-balance">
-                                <div class="text-body-secondary">{{ $account->isLoan() ? __('app.accounts.outstanding') : __('app.accounts.current_balance') }}</div>
+                                <div class="text-body-secondary">{{ __('app.accounts.balance_label.'.$kind) }}</div>
                                 <div @class(['account-balance__amount', 'text-danger' => $account->isLoan() && $remaining->isPositive()])>{{ $remaining->format() }}</div>
                                 <div class="small text-body-secondary">
                                     @if ($account->isLoan())
@@ -79,6 +81,12 @@
                                             ({{ __('app.accounts.agreed_extra') }}: {{ $agreedExtra->format() }})
                                         @endif
                                         · {{ __('app.accounts.received') }}: {{ $received->format() }}
+                                    @elseif ($account->isFdr())
+                                        {{ __('app.accounts.deposited') }}: {{ $received->format() }}
+                                        @if ($agreed)
+                                            · {{ __('app.accounts.agreed_payback') }}: {{ $agreed->format() }}
+                                        @endif
+                                        · {{ __('app.accounts.paid_back') }}: {{ $paidBack->format() }}
                                     @else
                                         {{ __('app.accounts.saved_so_far') }}: {{ $received->format() }}
                                         @if ($agreed)
@@ -105,7 +113,7 @@
                                 <div class="account-fact">
                                     <i class="bi bi-file-earmark-text" aria-hidden="true"></i>
                                     <div>
-                                        <div class="small text-body-secondary">{{ $account->isLoan() ? __('app.accounts.contract_amount') : __('app.accounts.agreed_amount') }}</div>
+                                        <div class="small text-body-secondary">{{ __('app.accounts.agreed_label.'.$kind) }}</div>
                                         <div class="fw-semibold">{{ $agreed->format() }}</div>
                                     </div>
                                 </div>
@@ -137,7 +145,14 @@
                                     </button>
                                 </div>
                             @endisset
-                            @isset($sections['plan'])
+                            @isset($sections['income'])
+                        @include('admin.accounts._section', [
+                            'key' => 'income', 'icon' => 'bi-coin', 'tone' => 'success',
+                            'title' => __('app.office_heads.client_income'),
+                            'body' => 'admin.accounts._income_form',
+                        ])
+                    @endisset
+                    @isset($sections['plan'])
                                 <div class="col-6">
                                     <button type="button" class="btn btn-primary account-action w-100" data-account-section="plan">
                                         <i class="bi bi-calendar-week" aria-hidden="true"></i> {{ __('app.accounts.actions.plan_'.$kind) }}
@@ -213,6 +228,27 @@
 
         {{-- History: latest entries, schedule, amount changes. --}}
         <section class="account-page__history">
+            @if ($clientIncome->isNotEmpty())
+                <div class="card mb-3">
+                    <div class="card-header"><h3 class="card-title mb-0"><i class="bi bi-coin me-1" aria-hidden="true"></i> {{ __('app.office_heads.client_income') }}</h3></div>
+                    <ul class="list-group list-group-flush">
+                        @foreach ($clientIncome as $income)
+                            <li class="list-group-item d-flex flex-wrap align-items-center gap-2">
+                                <span class="fw-semibold">{{ $income->officeHead?->name ?? __('app.office_heads.none') }}</span>
+                                <span class="text-body-secondary">{{ $date($income->transaction_date) }}</span>
+                                @if ($income->reversal)
+                                    <span class="badge text-bg-warning">{{ __('app.accounts.statement_reversed') }}</span>
+                                @endif
+                                @if ($income->receipt_no)
+                                    <a href="{{ route('admin.transactions.receipt', $income) }}" target="_blank" rel="noopener" class="small">{{ $income->receipt_no }}</a>
+                                @endif
+                                <span @class(['ms-auto fw-semibold text-nowrap', 'text-decoration-line-through text-body-secondary' => $income->reversal])>{{ $income->amount->format() }}</span>
+                            </li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
+
             <div class="card mb-3">
                 <div class="card-header d-flex align-items-center">
                     <h3 class="card-title mb-0"><i class="bi bi-receipt me-1" aria-hidden="true"></i> {{ __('app.accounts.recent') }}</h3>

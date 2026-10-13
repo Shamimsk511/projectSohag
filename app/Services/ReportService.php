@@ -9,6 +9,7 @@ use App\Enums\TransactionType;
 use App\Models\Account;
 use App\Models\CashHandover;
 use App\Models\CollectionSchedule;
+use App\Models\OfficeHead;
 use App\Models\Transaction;
 use App\Models\User;
 use App\Support\Money;
@@ -28,8 +29,10 @@ class ReportService
      * @return array{
      *     expected: Money, collected: Money, received_today: Money,
      *     counts: array<string, int>,
-     *     loan_outstanding: Money, saving_balance: Money, cash_in_hand: Money,
-     *     officers: list<array{officer: User, rows: int, paid: int, partial: int, missed: int, expected: Money, collected: Money, rate: int}>
+     *     loan_outstanding: Money, saving_balance: Money, fdr_held: Money, cash_in_hand: Money,
+     *     loans: array{count: int, principal: Money, extra: Money},
+     *     office: array{income: Money, expense: Money},
+     *     officers: list<array{officer: User, rows: int, paid: int, partial: int, missed: int, expected: Money, collected: Money, rate: int, cash: Money, last_at: Carbon|null}>
      * }
      */
     public function dashboard(Carbon $day): array
@@ -37,7 +40,14 @@ class ReportService
         [$rows, $collected] = $this->scheduleRows($day, $day);
         $totals = $this->scheduleTotals($rows, $collected);
 
-        $officers = $this->officerLines($rows, $collected);
+        $lines = $this->officerLines($rows, $collected);
+        $officerIds = array_map(fn (array $line): int => $line['officer']->id, $lines);
+        $cash = $this->ledger->cashInHand($officerIds);
+        $lastAt = $this->ledger->lastCollectionAt($officerIds, $day);
+        $officers = array_map(fn (array $line): array => $line + [
+            'cash' => $cash[$line['officer']->id],
+            'last_at' => $lastAt[$line['officer']->id] ?? null,
+        ], $lines);
 
         $holders = Transaction::query()->whereNotNull('field_officer_id')->distinct()->pluck('field_officer_id')->all();
 
@@ -48,12 +58,31 @@ class ReportService
             'counts' => $totals['counts'],
             'loan_outstanding' => $this->ledger->totalLoanOutstanding(),
             'saving_balance' => $this->ledger->totalSavingBalance(),
+            'fdr_held' => $this->ledger->totalFdrHeld(),
             'cash_in_hand' => Money::fromPoisha(array_sum(array_map(
                 fn (Money $money): int => $money->poisha,
                 $this->ledger->cashInHand(array_map('intval', $holders)),
             ))),
+            'loans' => $this->ledger->loansIssued($day, $day),
+            'office' => $this->ledger->officeTotals($day, $day),
             'officers' => $officers,
         ];
+    }
+
+    /**
+     * Newest ledger rows dated on the Dhaka day, any type (reversals included), for the live feed.
+     *
+     * @return Collection<int, Transaction>
+     */
+    public function activity(Carbon $day, int $limit = 30): Collection
+    {
+        return Transaction::query()
+            ->datedBetween($day, $day)
+            ->with(['party', 'account', 'fieldOfficer', 'createdBy', 'officeHead', 'reversal'])
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->limit($limit)
+            ->get();
     }
 
     /**
@@ -322,11 +351,140 @@ class ReportService
     }
 
     /**
+     * Loans handed over in the period, oldest first: principal, contract and the agreed extra of each
+     * account (contract minus everything disbursed on it; the period total counts each account once).
+     *
+     * @return array{
+     *     rows: list<array{transaction: Transaction, account: Account, contract: Money|null, extra: Money|null, officer: User|null}>,
+     *     count: int, principal: Money, extra: Money
+     * }
+     */
+    public function loanRegister(Carbon $from, Carbon $to): array
+    {
+        $rows = $this->ledger->rowsOfType([TransactionType::LoanDisbursement], $from, $to)
+            ->with(['account.party.activeAssignment.fieldOfficer'])
+            ->orderBy('transaction_date')->orderBy('id')
+            ->get();
+        $disbursed = $this->ledger->loanDisbursedFor($rows->pluck('account_id')->unique()->map(fn ($id): int => (int) $id)->values()->all());
+
+        $lines = [];
+        foreach ($rows as $row) {
+            $account = $row->account;
+            if ($account === null) {
+                continue;
+            }
+
+            $lines[] = [
+                'transaction' => $row,
+                'account' => $account,
+                'contract' => $account->contract_amount,
+                'extra' => $account->contract_amount?->minus($disbursed[$account->id]),
+                'officer' => $account->party->activeAssignment?->fieldOfficer,
+            ];
+        }
+
+        $issued = $this->ledger->loansIssued($from, $to);
+
+        return ['rows' => $lines, 'count' => $issued['count'], 'principal' => $issued['principal'], 'extra' => $issued['extra']];
+    }
+
+    /**
+     * Savings withdrawals in the period, oldest first.
+     *
+     * @return array{rows: Collection<int, Transaction>, total: Money}
+     */
+    public function withdrawalRegister(Carbon $from, Carbon $to): array
+    {
+        $rows = $this->ledger->rowsOfType([TransactionType::SavingWithdrawal], $from, $to)
+            ->with(['account', 'party'])
+            ->orderBy('transaction_date')->orderBy('id')
+            ->get();
+
+        return [
+            'rows' => $rows,
+            'total' => Money::fromPoisha((int) $rows->sum(fn (Transaction $row): int => $row->amount->poisha)),
+        ];
+    }
+
+    /**
+     * One row per day of the period: money in and out by type, the day's net and the running cash
+     * figure. Opening is everything received minus paid out before the first day (all payment
+     * methods, book entries excluded). Same figures as the old daily cash sheet, from the ledger.
+     *
+     * @return array{
+     *     opening: Money, closing: Money, totals: array<string, Money>,
+     *     days: list<array{date: Carbon, office_expense: Money, office_income: Money, loan_collection: Money, loan_disbursement: Money, saving_deposit: Money, saving_withdrawal: Money, investment_deposit: Money, investment_return: Money, net: Money, running: Money}>
+     * }
+     */
+    public function dailyCashBook(Carbon $from, Carbon $to): array
+    {
+        $perDay = $this->ledger->totalsByTypePerDay($from, $to);
+        $zero = Money::zero();
+        $opening = $this->cashBookOpening($from);
+        $running = $opening;
+        $totals = array_fill_keys(self::CASH_BOOK_TYPES, $zero);
+        $days = [];
+
+        for ($date = $from->copy(); $date->lte($to); $date->addDay()) {
+            $amounts = $perDay[$date->toDateString()] ?? [];
+            $line = ['date' => $date->copy()];
+            foreach (self::CASH_BOOK_TYPES as $type) {
+                $line[$type] = $amounts[$type] ?? $zero;
+                $totals[$type] = $totals[$type]->plus($line[$type]);
+            }
+
+            $line['net'] = $this->moneyIn($amounts)->minus($this->moneyOut($amounts));
+            $running = $running->plus($line['net']);
+            $line['running'] = $running;
+            $days[] = $line;
+        }
+
+        return ['opening' => $opening, 'closing' => $running, 'totals' => $totals, 'days' => $days];
+    }
+
+    private const CASH_BOOK_TYPES = ['office_expense', 'office_income', 'loan_collection', 'loan_disbursement', 'saving_deposit', 'saving_withdrawal', 'investment_deposit', 'investment_return'];
+
+    /**
+     * Opening office cash plus received minus paid out on every day before $from (nothing is dated before the opening day).
+     */
+    private function cashBookOpening(Carbon $from): Money
+    {
+        $before = $this->ledger->totalsByType(null, $from->copy()->subDay());
+
+        return $this->ledger->openingCash()->plus($this->moneyIn($before))->minus($this->moneyOut($before));
+    }
+
+    /**
+     * @param  array<string, Money>  $totals  amounts keyed by transaction type value
+     */
+    private function moneyIn(array $totals): Money
+    {
+        return Money::fromPoisha(array_sum(array_map(
+            fn (string $type): int => ($totals[$type] ?? Money::zero())->poisha,
+            [...array_map(fn (TransactionType $type): string => $type->value, TransactionType::collectionTypes()), 'office_income'],
+        )));
+    }
+
+    /**
+     * @param  array<string, Money>  $totals  amounts keyed by transaction type value
+     */
+    private function moneyOut(array $totals): Money
+    {
+        return Money::fromPoisha(array_sum(array_map(
+            fn (string $type): int => ($totals[$type] ?? Money::zero())->poisha,
+            ['loan_disbursement', 'saving_withdrawal', 'investment_return', 'office_expense'],
+        )));
+    }
+
+    /**
      * One Dhaka month: ledger totals by type, expected vs collected on the month's schedule rows,
      * and what was received each day (for the chart).
      *
      * @return array{
      *     totals: array<string, Money>, received: Money, paid_out: Money, office_net: Money,
+     *     money_in: Money, money_out: Money, opening: Money, closing: Money,
+     *     loans: array{count: int, principal: Money, extra: Money},
+     *     heads: list<array{head: OfficeHead|null, kind: TransactionType, total: Money}>,
      *     expected: Money, collected: Money, rate: int, counts: array<string, int>,
      *     daily: array<string, Money>
      * }
@@ -349,11 +507,21 @@ class ReportService
             $daily[$day->toDateString()] = $zero;
         }
 
+        $moneyIn = $this->moneyIn($totals);
+        $moneyOut = $this->moneyOut($totals);
+        $opening = $this->cashBookOpening($from);
+
         return [
             'totals' => $totals,
-            'received' => $get(TransactionType::LoanCollection)->plus($get(TransactionType::SavingDeposit)),
-            'paid_out' => $get(TransactionType::LoanDisbursement)->plus($get(TransactionType::SavingWithdrawal)),
+            'received' => Money::fromPoisha(array_sum(array_map(fn (TransactionType $type): int => $get($type)->poisha, TransactionType::collectionTypes()))),
+            'paid_out' => $get(TransactionType::LoanDisbursement)->plus($get(TransactionType::SavingWithdrawal))->plus($get(TransactionType::InvestmentReturn)),
             'office_net' => $get(TransactionType::OfficeIncome)->minus($get(TransactionType::OfficeExpense)),
+            'money_in' => $moneyIn,
+            'money_out' => $moneyOut,
+            'opening' => $opening,
+            'closing' => $opening->plus($moneyIn)->minus($moneyOut),
+            'loans' => $this->ledger->loansIssued($from, $to),
+            'heads' => $this->ledger->officeTotalsByHead($from, $to),
             'expected' => $schedule['expected'],
             'collected' => $schedule['collected'],
             'rate' => $schedule['expected']->isPositive() ? (int) round($counted * 100 / $schedule['expected']->poisha) : 0,

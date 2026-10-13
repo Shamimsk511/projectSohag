@@ -8,6 +8,7 @@ use App\Models\Account;
 use App\Models\Area;
 use App\Models\CollectionSchedule;
 use App\Models\Holiday;
+use App\Models\OfficeHead;
 use App\Models\PartyAssignment;
 use App\Models\Transaction;
 use App\Models\User;
@@ -39,6 +40,7 @@ class PermissionMatrixTest extends TestCase
      */
     private const MATRIX = [
         'admin.dashboard' => [self::MANAGER, self::ACCOUNTANT],
+        'admin.dashboard.live' => [self::MANAGER, self::ACCOUNTANT],
         'admin.search' => [self::MANAGER, self::ACCOUNTANT],
         'admin.reports.daily-collection' => [self::MANAGER, self::ACCOUNTANT],
         'admin.reports.officer-performance' => [self::MANAGER, self::ACCOUNTANT],
@@ -46,6 +48,9 @@ class PermissionMatrixTest extends TestCase
         'admin.reports.missed-partial' => [self::MANAGER, self::ACCOUNTANT],
         'admin.reports.cash-reconciliation' => [self::MANAGER, self::ACCOUNTANT],
         'admin.reports.monthly' => [self::MANAGER, self::ACCOUNTANT],
+        'admin.reports.loan-register' => [self::MANAGER, self::ACCOUNTANT],
+        'admin.reports.withdrawal-register' => [self::MANAGER, self::ACCOUNTANT],
+        'admin.reports.daily-cash-book' => [self::MANAGER, self::ACCOUNTANT],
 
         'admin.users.index' => [],
         'admin.users.create' => [],
@@ -81,12 +86,18 @@ class PermissionMatrixTest extends TestCase
         'admin.accounts.close' => [self::MANAGER],
         'admin.accounts.collection-plan.update' => [self::MANAGER],
         'admin.accounts.schedules.store' => [self::MANAGER],
-        'admin.accounts.transactions.store' => [self::ACCOUNTANT],
+        'admin.accounts.transactions.store' => [self::MANAGER, self::ACCOUNTANT],
 
         'admin.transactions.receipt' => [self::MANAGER, self::ACCOUNTANT],
         'admin.transactions.reverse' => [self::MANAGER],
         'admin.office-entries.index' => [self::MANAGER, self::ACCOUNTANT],
         'admin.office-entries.store' => [self::ACCOUNTANT],
+        'admin.accounts.office-income.store' => [self::ACCOUNTANT],
+        'admin.office-heads.index' => [self::ACCOUNTANT],
+        'admin.office-heads.create' => [self::ACCOUNTANT],
+        'admin.office-heads.store' => [self::ACCOUNTANT],
+        'admin.office-heads.edit' => [self::ACCOUNTANT],
+        'admin.office-heads.update' => [self::ACCOUNTANT],
 
         'admin.schedules.index' => [self::MANAGER, self::ACCOUNTANT],
         'admin.schedules.print' => [self::MANAGER, self::ACCOUNTANT],
@@ -104,6 +115,8 @@ class PermissionMatrixTest extends TestCase
         'admin.daily-closings.store' => [self::MANAGER, self::ACCOUNTANT],
         'admin.settings.edit' => [],
         'admin.settings.update' => [],
+        'admin.opening-cash.index' => [],
+        'admin.opening-cash.store' => [],
 
         'field.home' => [self::OFFICER],
         'field.sync' => [self::OFFICER],
@@ -208,6 +221,7 @@ class PermissionMatrixTest extends TestCase
             'account' => $account,
             'party' => $party,
             'area' => Area::factory()->create(),
+            'office_head' => OfficeHead::factory()->create(),
             'schedule' => $schedule,
             'transaction' => $transaction,
             'holiday' => Holiday::factory()->create(),

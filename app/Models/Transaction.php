@@ -23,6 +23,7 @@ use LogicException;
  * @property int|null $party_id
  * @property int|null $field_officer_id
  * @property int|null $schedule_id
+ * @property int|null $office_head_id
  * @property TransactionType $type
  * @property Money $amount
  * @property Carbon $transaction_date
@@ -37,7 +38,7 @@ use LogicException;
  * @property int|null $approved_by
  */
 #[Fillable([
-    'account_id', 'party_id', 'field_officer_id', 'schedule_id', 'type', 'amount', 'payment_method', 'reference',
+    'account_id', 'party_id', 'field_officer_id', 'schedule_id', 'office_head_id', 'type', 'amount', 'payment_method', 'reference',
     'receipt_no', 'description', 'override_reason', 'transaction_date', 'client_uuid', 'reverses_transaction_id', 'created_by',
     'approved_by',
 ])]
@@ -119,6 +120,14 @@ class Transaction extends Model
     public function reversedTransaction(): BelongsTo
     {
         return $this->belongsTo(Transaction::class, 'reverses_transaction_id');
+    }
+
+    /**
+     * @return BelongsTo<OfficeHead, $this>
+     */
+    public function officeHead(): BelongsTo
+    {
+        return $this->belongsTo(OfficeHead::class);
     }
 
     /**

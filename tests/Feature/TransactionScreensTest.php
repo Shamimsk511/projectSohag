@@ -4,10 +4,14 @@ namespace Tests\Feature;
 
 use App\Enums\PaymentMethod;
 use App\Enums\Role;
+use App\Enums\ScheduleStatus;
 use App\Enums\TransactionType;
 use App\Models\Account;
+use App\Models\CollectionSchedule;
 use App\Models\Transaction;
 use App\Models\User;
+use App\Services\LedgerService;
+use App\Support\Money;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Testing\TestResponse;
@@ -116,7 +120,6 @@ class TransactionScreensTest extends TestCase
     {
         $account = Account::factory()->create();
 
-        $this->postEntry($this->manager, $account, ['type' => 'saving_deposit', 'amount' => '100'])->assertForbidden();
         $this->postEntry(User::factory()->withRole(Role::FieldOfficer)->create(), $account, ['type' => 'saving_deposit', 'amount' => '100'])
             ->assertForbidden();
 
@@ -130,7 +133,8 @@ class TransactionScreensTest extends TestCase
         $action = route('admin.accounts.transactions.store', $account);
 
         $this->actingAs($this->accountant)->get(route('admin.accounts.show', $account))->assertOk()->assertSee($action);
-        $this->actingAs($this->manager)->get(route('admin.accounts.show', $account))->assertOk()->assertDontSee($action);
+        $this->actingAs($this->manager)->get(route('admin.accounts.show', $account))->assertOk()->assertSee($action);
+        $this->actingAs(User::factory()->withRole(Role::FieldOfficer)->create())->get(route('admin.accounts.show', $account))->assertForbidden();
         $this->actingAs($this->accountant)->get(route('admin.accounts.show', $closed))->assertOk()
             ->assertDontSee(route('admin.accounts.transactions.store', $closed));
     }
@@ -203,5 +207,75 @@ class TransactionScreensTest extends TestCase
 
         $this->actingAs($this->manager)->get(route('admin.accounts.statement', $account))->assertOk()
             ->assertDontSee(route('admin.transactions.reverse', $row));
+    }
+
+    public function test_manager_takes_a_loan_installment_at_the_counter_with_a_receipt(): void
+    {
+        $loan = Account::factory()->loan('10000')->create();
+
+        $response = $this->postEntry($this->manager, $loan, ['type' => 'loan_collection', 'amount' => '1,500', 'payment_method' => 'mobile_banking']);
+
+        $transaction = Transaction::sole();
+        $response->assertRedirect(route('admin.accounts.show', $loan))
+            ->assertSessionHas('status', __('app.transactions.recorded_with_receipt', ['receipt' => $transaction->receipt_no]));
+        $this->assertSame(TransactionType::LoanCollection, $transaction->type);
+        $this->assertSame(150_000, $transaction->amount->poisha);
+        $this->assertNull($transaction->field_officer_id);
+        $this->assertNull($transaction->schedule_id);
+        $this->assertSame($this->manager->id, $transaction->created_by);
+        $this->assertSame(850_000, app(LedgerService::class)->loanOutstanding($loan)->poisha);
+    }
+
+    public function test_counter_installment_can_settle_a_schedule_row(): void
+    {
+        $loan = Account::factory()->loan('10000')->create();
+        $row = CollectionSchedule::factory()->create(['account_id' => $loan->id, 'expected_amount' => Money::fromTaka('500')]);
+
+        $this->postEntry($this->manager, $loan, ['type' => 'loan_collection', 'amount' => '200', 'schedule_id' => $row->id])
+            ->assertSessionHasNoErrors();
+        $this->assertSame(ScheduleStatus::PartiallyPaid, $row->fresh()?->status);
+
+        $this->postEntry($this->manager, $loan, ['type' => 'loan_collection', 'amount' => '300', 'schedule_id' => $row->id])
+            ->assertSessionHasNoErrors();
+        $this->assertSame(ScheduleStatus::Paid, $row->fresh()?->status);
+        $this->assertSame([$row->id, $row->id], Transaction::query()->pluck('schedule_id')->all());
+    }
+
+    public function test_counter_installment_rejects_a_foreign_or_closed_schedule_row(): void
+    {
+        $loan = Account::factory()->loan('10000')->create();
+        $other = CollectionSchedule::factory()->create(['account_id' => Account::factory()->loan('10000')]);
+        $paid = CollectionSchedule::factory()->create(['account_id' => $loan->id, 'status' => ScheduleStatus::Paid]);
+
+        $this->postEntry($this->manager, $loan, ['type' => 'loan_collection', 'amount' => '100', 'schedule_id' => $other->id])
+            ->assertSessionHasErrors(['schedule_id' => __('app.transactions.schedule_mismatch')]);
+        $this->postEntry($this->manager, $loan, ['type' => 'loan_collection', 'amount' => '100', 'schedule_id' => $paid->id])
+            ->assertSessionHasErrors(['schedule_id' => __('app.transactions.schedule_not_open')]);
+        $this->postEntry($this->manager, $loan, ['type' => 'loan_collection', 'amount' => '100', 'schedule_id' => 99999])
+            ->assertSessionHasErrors('schedule_id');
+
+        $this->assertSame(0, Transaction::count());
+    }
+
+    public function test_manager_cannot_collect_more_than_outstanding(): void
+    {
+        $loan = Account::factory()->loan('1000')->create();
+
+        $this->postEntry($this->manager, $loan, ['type' => 'loan_collection', 'amount' => '1,001'])
+            ->assertSessionHasErrors('amount');
+
+        $this->assertSame(0, Transaction::count());
+    }
+
+    public function test_loan_page_offers_collection_and_the_open_schedule_rows(): void
+    {
+        $loan = Account::factory()->loan('10000')->create();
+        $row = CollectionSchedule::factory()->create(['account_id' => $loan->id]);
+        $paid = CollectionSchedule::factory()->create(['account_id' => $loan->id, 'status' => ScheduleStatus::Paid, 'due_date' => today(config('app.display_timezone'))->subDay()]);
+
+        $this->actingAs($this->manager)->get(route('admin.accounts.show', $loan))->assertOk()
+            ->assertSee('value="loan_collection"', false)
+            ->assertSee('<option value="'.$row->id.'"', false)
+            ->assertDontSee('<option value="'.$paid->id.'"', false);
     }
 }

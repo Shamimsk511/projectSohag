@@ -118,4 +118,9 @@ class Account extends Model
     {
         return $this->account_type === AccountType::Loan;
     }
+
+    public function isFdr(): bool
+    {
+        return $this->account_type === AccountType::Fdr;
+    }
 }

@@ -48,6 +48,17 @@
                         </fieldset>
 
                         <div class="mb-3">
+                            <label for="office_head_id" class="form-label">{{ __('app.office_heads.head') }}</label>
+                            <select id="office_head_id" name="office_head_id" @class(['form-select', 'is-invalid' => $errors->has('office_head_id')])>
+                                <option value="">{{ __('app.office_heads.none') }}</option>
+                                @foreach ($heads as $head)
+                                    <option value="{{ $head->id }}" data-kind="{{ $head->kind->value }}" @selected((string) old('office_head_id') === (string) $head->id)>{{ $head->name }}</option>
+                                @endforeach
+                            </select>
+                            @error('office_head_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        </div>
+
+                        <div class="mb-3">
                             <x-form.input name="amount" :label="__('app.transactions.amount').' (৳)'" inputmode="decimal" autocomplete="off"
                                           class="form-control-lg" required />
                         </div>
@@ -123,6 +134,23 @@
                 <div class="col-12 small text-body-secondary">{{ __('app.office_entries.totals_hint') }}</div>
             </div>
 
+            @if ($headTotals)
+                <div class="card mb-3">
+                    <div class="card-header"><h3 class="card-title mb-0">{{ __('app.office_heads.totals_title') }}</h3></div>
+                    <table class="table table-sm mb-0">
+                        <tbody>
+                            @foreach ($headTotals as $line)
+                                <tr>
+                                    <td>{{ $line['head']?->name ?? __('app.office_heads.none') }}</td>
+                                    <td class="text-body-secondary">{{ __('app.transactions.types.'.$line['kind']->value) }}</td>
+                                    <td class="text-end text-nowrap">{{ $line['total']->format() }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @endif
+
             <div class="card">
                 <div class="table-responsive">
                     <table class="table table-sm table-striped align-middle mb-0">
@@ -145,6 +173,15 @@
                                         {{ __('app.transactions.types.'.$entry->type->value) }}
                                         @if ($entry->reversal)
                                             <span class="badge text-bg-warning">{{ __('app.accounts.statement_reversed') }}</span>
+                                        @endif
+                                        @if ($entry->officeHead)
+                                            <span class="badge text-bg-light border">{{ $entry->officeHead->name }}</span>
+                                        @endif
+                                        @if ($entry->party && $entry->account)
+                                            <div class="small">
+                                                {{ __('app.office_heads.client') }}:
+                                                <a href="{{ route('admin.accounts.show', $entry->account) }}">{{ $entry->party->name }} · {{ $entry->account->account_number }}</a>
+                                            </div>
                                         @endif
                                         <div class="small text-body-secondary">{{ $entry->description }}</div>
                                         @if ($entry->reversal)

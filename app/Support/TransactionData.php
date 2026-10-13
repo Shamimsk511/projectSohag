@@ -6,6 +6,7 @@ use App\Enums\PaymentMethod;
 use App\Enums\TransactionType;
 use App\Models\Account;
 use App\Models\CollectionSchedule;
+use App\Models\OfficeHead;
 use App\Models\User;
 use Illuminate\Support\Carbon;
 
@@ -26,6 +27,7 @@ final readonly class TransactionData
         public ?User $fieldOfficer = null,
         public ?string $overrideReason = null,
         public ?CollectionSchedule $schedule = null,
+        public ?OfficeHead $officeHead = null,
     ) {}
 
     /**

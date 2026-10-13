@@ -91,7 +91,6 @@ class TransactionServiceTest extends TestCase
         $this->assertRejected(fn () => $this->record(TransactionType::LoanCollection, '100', $saving));
         $this->assertRejected(fn () => $this->record(TransactionType::SavingDeposit, '100', $loan));
         $this->assertRejected(fn () => $this->record(TransactionType::SavingDeposit, '100', null));
-        $this->assertRejected(fn () => $this->record(TransactionType::OfficeIncome, '100', $saving));
     }
 
     public function test_rejects_types_without_a_defined_direction(): void

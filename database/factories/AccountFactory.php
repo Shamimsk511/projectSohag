@@ -41,6 +41,15 @@ class AccountFactory extends Factory
         ]);
     }
 
+    public function fdr(?string $agreedPaybackTaka = null): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'account_number' => 'FD-'.fake()->unique()->numerify('9#####'),
+            'account_type' => AccountType::Fdr,
+            'contract_amount' => $agreedPaybackTaka === null ? null : Money::fromTaka($agreedPaybackTaka),
+        ]);
+    }
+
     public function closed(): static
     {
         return $this->state(fn (array $attributes) => ['closed_at' => today(config('app.display_timezone'))]);

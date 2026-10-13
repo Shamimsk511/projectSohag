@@ -45,7 +45,7 @@
                                     <span class="badge text-bg-secondary">{{ __('app.accounts.closed') }}</span>
                                 @endunless
                             </div>
-                            <div class="text-body-secondary small">{{ $account->isLoan() ? __('app.accounts.outstanding') : __('app.accounts.balance') }}</div>
+                            <div class="text-body-secondary small">{{ $account->isLoan() ? __('app.accounts.outstanding') : ($account->isFdr() ? __('app.accounts.remaining_payback') : __('app.accounts.balance')) }}</div>
                             <div class="display-6 fw-bold text-nowrap">{{ $balances[$account->id]->format() }}</div>
                         </div>
                         <div class="card-footer small text-body-secondary">

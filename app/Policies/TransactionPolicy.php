@@ -37,6 +37,14 @@ class TransactionPolicy
         return $user->can(Permission::PostOfficeEntries->value);
     }
 
+    /**
+     * Post office income taken from the account's party (fee, form...), linked to the account.
+     */
+    public function createOfficeIncome(User $user, Account $account): bool
+    {
+        return $user->can(Permission::PostOfficeEntries->value) && $user->can('view', $account);
+    }
+
     public function reverse(User $user, Transaction $transaction): bool
     {
         return $user->can(Permission::ReverseTransactions->value)

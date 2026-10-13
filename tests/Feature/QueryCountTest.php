@@ -48,6 +48,11 @@ class QueryCountTest extends TestCase
             'account' => fn () => route('admin.accounts.show', $account),
             'users' => fn () => route('admin.users.index'),
             'dashboard' => fn () => route('admin.dashboard', ['date' => '2026-10-12']),
+            'loan register' => fn () => route('admin.reports.loan-register', ['from' => '2026-10-01', 'to' => '2026-10-31']),
+            'withdrawals' => fn () => route('admin.reports.withdrawal-register', ['from' => '2026-10-01', 'to' => '2026-10-31']),
+            'cash book' => fn () => route('admin.reports.daily-cash-book', ['from' => '2026-10-01', 'to' => '2026-10-31']),
+            'monthly' => fn () => route('admin.reports.monthly', ['month' => '2026-10']),
+            'dashboard live' => fn () => route('admin.dashboard.live', ['date' => '2026-10-12']),
         ];
 
         $this->seedRows(2, $officer, $account);

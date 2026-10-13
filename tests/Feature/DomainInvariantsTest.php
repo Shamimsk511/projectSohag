@@ -35,7 +35,7 @@ class DomainInvariantsTest extends TestCase
     /**
      * Tables whose rows are never changed after insert (the models throw; raw queries would bypass that).
      */
-    private const IMMUTABLE_TABLES = ['transactions', 'audit_logs', 'cash_handovers', 'daily_closings'];
+    private const IMMUTABLE_TABLES = ['transactions', 'audit_logs', 'cash_handovers', 'daily_closings', 'opening_balances'];
 
     /**
      * Every column holding money (poisha).
@@ -47,6 +47,7 @@ class DomainInvariantsTest extends TestCase
         'collection_plans' => ['installment_amount'],
         'collection_schedules' => ['expected_amount'],
         'cash_handovers' => ['amount'],
+        'opening_balances' => ['amount'],
     ];
 
     public function test_no_interest_profit_or_compliance_wording_in_the_product(): void
@@ -91,7 +92,7 @@ class DomainInvariantsTest extends TestCase
         foreach ($this->sourceStatements(['app', 'database/seeders', 'routes']) as $where => $statement) {
             $rawTable = preg_match("/DB::table\\(['\"]({$tables})['\"]\\)/", $statement) === 1
                 && preg_match('/->(insert|update|delete|upsert|truncate|increment|decrement)\w*\(/', $statement) === 1;
-            $massWrite = preg_match('/\b(Transaction|AuditLog|CashHandover|DailyClosing)::\w[^;]*->(update|delete|forceDelete|upsert|truncate|increment|decrement)\(/s', $statement) === 1;
+            $massWrite = preg_match('/\b(Transaction|AuditLog|CashHandover|DailyClosing|OpeningBalance)::\w[^;]*->(update|delete|forceDelete|upsert|truncate|increment|decrement)\(/s', $statement) === 1;
             if ($rawTable || $massWrite) {
                 $bypasses[] = $where;
             }
@@ -127,6 +128,11 @@ class DomainInvariantsTest extends TestCase
         $record(TransactionType::SavingDeposit, '500', '2026-10-12', $saving, ['fieldOfficer' => $officer]);
         $record(TransactionType::SavingMaturityCredit, '949.50', '2026-10-12', $saving);
 
+        $fdr = Account::factory()->fdr('1500')->create(['opened_at' => '2026-10-01']);
+        $record(TransactionType::InvestmentDeposit, '1000', '2026-10-03', $fdr, ['fieldOfficer' => $officer]);
+        $record(TransactionType::InvestmentDeposit, '200', '2026-10-05', $fdr);
+        $record(TransactionType::InvestmentReturn, '300', '2026-10-10', $fdr);
+
         $record(TransactionType::LoanDisbursement, '800', '2026-10-01', $loan);
         $collection = $record(TransactionType::LoanCollection, '200', '2026-10-12', $loan, ['schedule' => $schedule, 'fieldOfficer' => $officer, 'clientUuid' => 'a7f1c1b2-0000-4000-8000-000000000001'], $officer);
         $record(TransactionType::LoanCollection, '200', '2026-10-12', $loan, ['schedule' => $schedule, 'fieldOfficer' => $officer, 'clientUuid' => 'a7f1c1b2-0000-4000-8000-000000000001'], $officer);
@@ -151,7 +157,7 @@ class DomainInvariantsTest extends TestCase
             - $sum($effective()->where('account_id', $saving->id)->where('type', TransactionType::SavingWithdrawal->value));
         $loanReceived = $sum($effective()->where('account_id', $loan->id)->where('type', TransactionType::LoanCollection->value));
         $cashCollected = $sum($effective()->where('field_officer_id', $officer->id)->where('payment_method', PaymentMethod::Cash->value)
-            ->whereIn('type', [TransactionType::LoanCollection->value, TransactionType::SavingDeposit->value]));
+            ->whereIn('type', array_map(fn ($t) => $t->value, TransactionType::collectionTypes())));
 
         $this->assertSame(190000, $savingBalance); // 300 + 250.50 - 100 + 500 + 949.50, the reversed 500 left out
         $this->assertSame($savingBalance, $ledger->savingBalance($saving)->poisha);
@@ -166,13 +172,22 @@ class DomainInvariantsTest extends TestCase
         );
         $this->assertSame($cashCollected - 40000, $ledger->cashInHand([$officer->id])[$officer->id]->poisha);
 
+        $fdrIn = $sum($effective()->where('account_id', $fdr->id)->where('type', TransactionType::InvestmentDeposit->value));
+        $fdrOut = $sum($effective()->where('account_id', $fdr->id)->where('type', TransactionType::InvestmentReturn->value));
+        $this->assertSame(120000, $fdrIn);
+        $this->assertSame($fdrIn, $ledger->fdrDeposited($fdr)->poisha);
+        $this->assertSame($fdrOut, $ledger->fdrReturned($fdr)->poisha);
+        $this->assertSame($fdrIn - $fdrOut, $ledger->statement($fdr)->closing->poisha);
+        $this->assertSame($fdr->contract_amount->poisha - $fdrOut, $ledger->fdrRemaining($fdr)->poisha);
+        $this->assertSame($fdrIn - $fdrOut, $ledger->totalFdrHeld()->poisha);
+
         $office = $ledger->officeTotals(Carbon::parse('2026-10-01'), Carbon::parse('2026-10-31'));
         $this->assertSame($sum($effective()->whereNull('account_id')->where('type', TransactionType::OfficeIncome->value)), $office['income']->poisha);
         $this->assertSame($sum($effective()->whereNull('account_id')->where('type', TransactionType::OfficeExpense->value)), $office['expense']->poisha);
 
         // Row-level rules: positive amounts, one reversal per original, one audit row per ledger row.
         $rows = Transaction::query()->get();
-        $this->assertCount(16, $rows);
+        $this->assertCount(19, $rows);
         $this->assertTrue($rows->every(fn (Transaction $row): bool => $row->amount->isPositive()));
         $this->assertSame(count($reversedIds), count(array_unique($reversedIds)));
         foreach ($rows as $row) {

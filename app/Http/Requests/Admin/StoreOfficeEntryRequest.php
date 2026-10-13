@@ -4,6 +4,7 @@ namespace App\Http\Requests\Admin;
 
 use App\Enums\PaymentMethod;
 use App\Enums\TransactionType;
+use App\Models\OfficeHead;
 use App\Models\Transaction;
 use App\Rules\TakaAmount;
 use App\Support\Money;
@@ -32,6 +33,7 @@ class StoreOfficeEntryRequest extends FormRequest
             'type' => ['required', Rule::in(array_map(fn (TransactionType $type): string => $type->value, TransactionType::officeTypes()))],
             'amount' => ['required', new TakaAmount],
             'transaction_date' => ['required', 'date_format:Y-m-d'],
+            'office_head_id' => ['nullable', 'integer', Rule::exists('office_heads', 'id')],
             'payment_method' => ['required', Rule::enum(PaymentMethod::class)],
             'reference' => ['nullable', 'string', 'max:100'],
             'description' => ['required', 'string', 'max:500'],
@@ -47,6 +49,7 @@ class StoreOfficeEntryRequest extends FormRequest
             'type' => __('app.transactions.type'),
             'amount' => __('app.transactions.amount'),
             'transaction_date' => __('app.transactions.date'),
+            'office_head_id' => __('app.office_heads.head'),
             'payment_method' => __('app.transactions.payment_method'),
             'reference' => __('app.transactions.reference'),
             'description' => __('app.office_entries.description'),
@@ -62,6 +65,7 @@ class StoreOfficeEntryRequest extends FormRequest
             paymentMethod: PaymentMethod::from($this->string('payment_method')->value()),
             reference: $this->validated('reference'),
             description: $this->validated('description'),
+            officeHead: $this->filled('office_head_id') ? OfficeHead::query()->find($this->integer('office_head_id')) : null,
         );
     }
 }
