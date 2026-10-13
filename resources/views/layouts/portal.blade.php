@@ -15,7 +15,7 @@
 </head>
 <body class="bg-body-tertiary" @if (! Vite::isRunningHot() && $swVersion = Vite::manifestHash()) data-sw="/portal-sw.js?v={{ $swVersion }}" @endif>
     <header class="navbar bg-body border-bottom px-3 d-print-none">
-        <span class="navbar-brand mb-0 h1">{{ config('app.name') }}</span>
+        <span class="navbar-brand mb-0 h1 d-flex align-items-center gap-2"><img src="/icons/icon-192.png" width="32" height="32" alt="">{{ config('app.name') }}</span>
         @if (\App\Support\PortalSession::partyId())
             <form method="POST" action="{{ route('portal.lock') }}">
                 @csrf

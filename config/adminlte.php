@@ -45,7 +45,7 @@ return [
     |
     */
 
-    'title' => 'Srijonshil',
+    'title' => env('APP_NAME', 'সৃজনশীল'),
     'title_prefix' => '',
     'title_postfix' => '',
 
@@ -85,12 +85,12 @@ return [
     |
     */
 
-    'logo' => '<b>Srijonshil</b>',
-    'logo_img' => 'vendor/adminlte/dist/assets/img/AdminLTELogo.png',
-    'logo_img_class' => 'brand-image opacity-75 shadow',
+    'logo' => '<b>'.e(env('APP_NAME', 'সৃজনশীল')).'</b>',
+    'logo_img' => 'images/logo-mark.png',
+    'logo_img_class' => 'brand-image',
     'logo_img_xl' => null,
     'logo_img_xl_class' => 'brand-image-xs opacity-75',
-    'logo_img_alt' => 'Admin Logo',
+    'logo_img_alt' => 'Srijonshil',
 
     /*
     |--------------------------------------------------------------------------
@@ -106,13 +106,13 @@ return [
     */
 
     'auth_logo' => [
-        'enabled' => false,
+        'enabled' => true,
         'img' => [
-            'path' => 'vendor/adminlte/dist/assets/img/AdminLTELogo.png',
-            'alt' => 'Auth Logo',
+            'path' => 'images/logo.png',
+            'alt' => 'Srijonshil',
             'class' => '',
-            'width' => 50,
-            'height' => 50,
+            'width' => 180,
+            'height' => 180,
         ],
     ],
 
@@ -141,7 +141,7 @@ return [
     */
 
     'preloader' => [
-        'enabled' => true,
+        'enabled' => false,
         'mode' => 'fullscreen',
         'img' => [
             'path' => 'vendor/adminlte/dist/assets/img/AdminLTELogo.png',

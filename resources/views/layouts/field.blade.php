@@ -25,7 +25,7 @@
     @auth @sectionMissing('hide_logout') data-user-id="{{ auth()->id() }}" @endif @endauth
     @if ($pinLock) @auth @sectionMissing('hide_logout') data-pin-user="{{ auth()->id() }}" data-pin-name="{{ auth()->user()->name }}" @if ($pinFresh) data-pin-fresh-login @endif @endif @endauth @endif>
     <header class="navbar bg-body border-bottom px-3 d-print-none">
-        <span class="navbar-brand mb-0 h1">{{ config('app.name') }}</span>
+        <span class="navbar-brand mb-0 h1 d-flex align-items-center gap-2"><img src="/icons/icon-192.png" width="32" height="32" alt="">{{ config('app.name') }}</span>
         @sectionMissing('hide_logout')
             {{-- .js-logout: field.js clears the offline list before signing out. --}}
             <form method="POST" action="{{ route('logout') }}" class="js-logout">
