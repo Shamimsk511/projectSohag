@@ -271,7 +271,7 @@ class FdrAccountTest extends TestCase
             ->assertSee(Money::fromTaka('900')->format());
     }
 
-    public function test_fdr_never_counts_in_the_party_saving_total(): void
+    public function test_fdr_payback_counts_in_what_we_hold_for_the_party_not_in_what_they_owe(): void
     {
         $this->withoutVite();
         $fdr = Account::factory()->fdr('1200')->create();
@@ -279,7 +279,7 @@ class FdrAccountTest extends TestCase
 
         $this->actingAs($this->admin)->get(route('admin.parties.show', $fdr->party))
             ->assertOk()
-            ->assertViewHas('totals', fn (array $totals): bool => $totals['saving']->isZero() && $totals['loan']->isZero());
+            ->assertViewHas('totals', fn (array $totals): bool => $totals['owes']->isZero() && $totals['holds']->poisha === Money::fromTaka('1200')->poisha);
     }
 
     public function test_statement_page_for_fdr_uses_neutral_labels(): void

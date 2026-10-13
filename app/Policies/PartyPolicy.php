@@ -57,6 +57,14 @@ class PartyPolicy
         return $user->can(Permission::ManageParties->value);
     }
 
+    /**
+     * Issue, print, share or reset the member's portal link and PIN.
+     */
+    public function managePortal(User $user, Party $party): bool
+    {
+        return $user->can(Permission::ManageParties->value);
+    }
+
     public function assign(User $user, Party $party): bool
     {
         return $user->can(Permission::AssignParties->value);

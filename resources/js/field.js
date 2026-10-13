@@ -9,8 +9,19 @@ import '../css/field.css';
 import { clearToday, loadToday, queuedFor, removeQueued, saveToday } from './field/db.js';
 import { initOfflinePage } from './field/offline-page.js';
 import { localizeDigits, parseTaka, queueCollection, renderQueue, t, toAsciiDigits, uuid } from './field/queue.js';
+import { requirePin, showLockError } from './field/pin.js';
 import { initSyncPage } from './field/sync-page.js';
 import { pruneSynced, syncQueue } from './field/sync.js';
+import { initInstallBanner } from './install-banner.js';
+import { initWhatsAppButtons } from './whatsapp.js';
+
+// PIN lock on live /field pages (the layout sets data-pin-user only there). Runs first so nothing shows unlocked.
+const pinUser = Number(document.body.dataset.pinUser) || null;
+if (pinUser) {
+    requirePin(pinUser, document.body.dataset.pinName, { live: true, freshLogin: 'pinFreshLogin' in document.body.dataset }).catch(showLockError);
+}
+
+initWhatsAppButtons();
 
 // Ask before saving forms that cannot be undone (collections are immutable).
 document.addEventListener('submit', (event) => {
@@ -44,6 +55,10 @@ document.addEventListener('input', (event) => {
         shown += match ? 1 : 0;
     });
     document.querySelector('[data-party-no-match]')?.classList.toggle('d-none', shown > 0);
+    const paid = document.querySelector('[data-paid-clients]');
+    if (paid && query !== '') {
+        paid.open = true; // a search must also find members who already paid
+    }
 });
 
 // Receipt buttons: print, and share through the phone's share sheet where supported.
@@ -68,6 +83,7 @@ if (serviceWorkerUrl && 'serviceWorker' in navigator) {
         navigator.serviceWorker.register(serviceWorkerUrl, { scope: '/field' }).catch(() => {});
     });
 }
+initInstallBanner('field');
 
 // Offline day list: /field embeds a snapshot of the officer's rows; keep the latest copy in IndexedDB.
 const todaySnapshot = document.getElementById('field-today');

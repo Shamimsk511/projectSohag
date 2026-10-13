@@ -76,6 +76,19 @@
             </select>
             @error('status')<div class="invalid-feedback">{{ $message }}</div>@enderror
         </div>
+        @if ($officers ?? null)
+            <div class="col-md-6 mb-3">
+                <label for="field_officer_id" class="form-label">{{ __('app.parties.field_officer') }}</label>
+                <select id="field_officer_id" name="field_officer_id" class="form-select @error('field_officer_id') is-invalid @enderror">
+                    <option value="">{{ __('app.accounts.officer_none') }}</option>
+                    @foreach ($officers as $officer)
+                        <option value="{{ $officer->id }}" @selected((string) old('field_officer_id') === (string) $officer->id)>{{ $officer->name }}</option>
+                    @endforeach
+                </select>
+                <div class="form-text">{{ __('app.parties.officer_hint') }}</div>
+                @error('field_officer_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
+            </div>
+        @endif
     </div>
 
     <div class="mb-3">

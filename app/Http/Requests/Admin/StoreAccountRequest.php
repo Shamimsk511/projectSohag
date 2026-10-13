@@ -46,7 +46,8 @@ class StoreAccountRequest extends FormRequest
     }
 
     /**
-     * Loan collection section: officer and plan. All optional; no installment means no plan yet.
+     * Collection section (every account type): officer and plan. All optional; no installment means
+     * no plan yet. Term / end date only matter for saving and FDR plans.
      *
      * @return array<string, ValidationRule|array<mixed>|string>
      */
@@ -61,6 +62,9 @@ class StoreAccountRequest extends FormRequest
             'weekdays' => ['nullable', 'array'],
             'weekdays.*' => ['integer', 'between:0,6'],
             'starts_on' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:'.today(config('app.display_timezone'))->toDateString()],
+            'ends_on' => ['nullable', 'date_format:Y-m-d'],
+            'duration' => ['nullable', 'integer', 'between:1,600'],
+            'duration_unit' => ['required_with:duration', 'nullable', Rule::in(['months', 'years'])],
         ];
     }
 
@@ -71,12 +75,16 @@ class StoreAccountRequest extends FormRequest
     {
         return [
             function (Validator $validator): void {
-                if ($validator->errors()->isNotEmpty() || $this->accountType() !== AccountType::Loan) {
+                if ($validator->errors()->isNotEmpty()) {
                     return;
                 }
 
-                if (($this->filled('installment_amount') || $this->filled('installment_count')) && ! $this->amountToCollect()->isPositive()) {
-                    $validator->errors()->add('installment_amount', __('app.accounts.nothing_to_collect'));
+                if ($this->accountType() === AccountType::Loan) {
+                    if (($this->filled('installment_amount') || $this->filled('installment_count')) && ! $this->amountToCollect()->isPositive()) {
+                        $validator->errors()->add('installment_amount', __('app.accounts.nothing_to_collect'));
+                    }
+                } elseif ($this->filled('ends_on') && $this->planEndsOn()?->lt($this->firstCollectionOn())) {
+                    $validator->errors()->add('ends_on', __('validation.after_or_equal', ['attribute' => __('app.schedules.ends_on'), 'date' => __('app.accounts.first_collection')]));
                 }
 
                 /** @var Party $party */
@@ -109,6 +117,9 @@ class StoreAccountRequest extends FormRequest
             'installment_count' => __('app.accounts.installment_count'),
             'weekdays' => __('app.schedules.weekdays'),
             'starts_on' => __('app.accounts.first_collection'),
+            'ends_on' => __('app.schedules.ends_on'),
+            'duration' => __('app.schedules.duration'),
+            'duration_unit' => __('app.schedules.duration_unit'),
         ];
     }
 
@@ -200,8 +211,10 @@ class StoreAccountRequest extends FormRequest
 
     public function collectionPlan(): ?CollectionPlanData
     {
-        $installments = $this->installments();
-        if ($installments === null) {
+        $installment = $this->accountType() === AccountType::Loan
+            ? $this->installments()?->installment
+            : ($this->filled('installment_amount') ? Money::fromTaka($this->string('installment_amount')->value()) : null);
+        if ($installment === null || ! $installment->isPositive()) {
             return null;
         }
 
@@ -210,7 +223,27 @@ class StoreAccountRequest extends FormRequest
             ? ($this->has('weekdays') ? array_values(array_map(intval(...), (array) $this->input('weekdays', []))) : CollectionPlan::DEFAULT_WEEKDAYS)
             : null;
 
-        return new CollectionPlanData($frequency, $installments->installment, $weekdays, $this->firstCollectionOn());
+        return new CollectionPlanData(
+            $frequency,
+            $installment,
+            $weekdays,
+            $this->firstCollectionOn(),
+            $this->accountType() === AccountType::Loan ? null : $this->planEndsOn(),
+        );
+    }
+
+    /**
+     * Saving/FDR plan end: the typed date, else first collection + term, else open-ended.
+     */
+    public function planEndsOn(): ?Carbon
+    {
+        if ($this->filled('ends_on')) {
+            return Carbon::createFromFormat('!Y-m-d', $this->string('ends_on')->value()) ?: null;
+        }
+
+        return $this->filled('duration')
+            ? CollectionPlanData::endOfTerm($this->firstCollectionOn(), $this->integer('duration'), $this->string('duration_unit')->value())
+            : null;
     }
 
     /**

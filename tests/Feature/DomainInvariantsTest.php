@@ -35,7 +35,7 @@ class DomainInvariantsTest extends TestCase
     /**
      * Tables whose rows are never changed after insert (the models throw; raw queries would bypass that).
      */
-    private const IMMUTABLE_TABLES = ['transactions', 'audit_logs', 'cash_handovers', 'daily_closings', 'opening_balances'];
+    private const IMMUTABLE_TABLES = ['transactions', 'audit_logs', 'cash_handovers', 'daily_closings', 'opening_balances', 'whatsapp_logs'];
 
     /**
      * Every column holding money (poisha).

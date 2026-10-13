@@ -15,9 +15,9 @@ use App\Models\PartyAssignment;
 use App\Models\Transaction;
 use App\Models\User;
 use App\Services\AccountService;
+use App\Services\AccountSetupService;
 use App\Services\AssignmentService;
 use App\Services\CollectionService;
-use App\Services\LoanSetupService;
 use App\Support\CollectionPlanData;
 use App\Support\Installments;
 use App\Support\Money;
@@ -136,7 +136,7 @@ class LoanSetupTest extends TestCase
 
     public function test_a_failing_step_rolls_back_the_account_disbursement_and_assignment(): void
     {
-        $service = app(LoanSetupService::class);
+        $service = app(AccountSetupService::class);
         $accounts = app(AccountService::class);
 
         try {

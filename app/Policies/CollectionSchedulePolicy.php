@@ -36,4 +36,12 @@ class CollectionSchedulePolicy
     {
         return $user->can(Permission::RecordCollections->value) && $schedule->field_officer_id === $user->id;
     }
+
+    /**
+     * Send the member a WhatsApp reminder for this row: its officer, or office staff who see schedules.
+     */
+    public function remind(User $user, CollectionSchedule $schedule): bool
+    {
+        return $this->collect($user, $schedule) || $this->viewAny($user);
+    }
 }

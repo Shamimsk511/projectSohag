@@ -65,4 +65,13 @@ class ViteEntriesTest extends TestCase
             ->assertDontSee('resources/js/admin.js', false)
             ->assertDontSee('app-wrapper', false);
     }
+
+    public function test_portal_layout_loads_only_the_portal_entry(): void
+    {
+        $this->get('/portal/start')
+            ->assertOk()
+            ->assertSee('http://vite.test/resources/js/portal.js', false)
+            ->assertDontSee('resources/js/admin.js', false)
+            ->assertDontSee('resources/js/field.js', false);
+    }
 }

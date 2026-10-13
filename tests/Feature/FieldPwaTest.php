@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Enums\Role;
 use App\Models\User;
+use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Vite;
 use Tests\TestCase;
@@ -118,5 +119,48 @@ class FieldPwaTest extends TestCase
             ->get('/field/offline')
             ->assertOk()
             ->assertDontSee(route('logout'), false);
+    }
+
+    public function test_field_pages_carry_the_pin_lock(): void
+    {
+        $this->withoutVite();
+        $officer = User::factory()->withRole(Role::FieldOfficer)->create(['name' => 'Rina Officer']);
+
+        $this->actingAs($officer)->get('/field')->assertOk()
+            ->assertSee("document.documentElement.classList.add('pin-pending')", false)
+            ->assertSee('id="pin-lock"', false)
+            ->assertSee('id="field-pin-strings"', false)
+            ->assertSee('data-pin-user="'.$officer->id.'"', false)
+            ->assertSee('data-pin-name="Rina Officer"', false)
+            ->assertSee('data-install-banner', false);
+
+        // Offline page: locked with the saved list's user (set by JS), never with the session user.
+        $this->get(route('field.offline'))->assertOk()
+            ->assertSee('id="pin-lock"', false)
+            ->assertSee('data-pin-missing', false)
+            ->assertDontSee('data-pin-user=', false);
+    }
+
+    public function test_admin_pages_on_the_field_layout_are_not_pin_locked(): void
+    {
+        $this->withoutVite();
+        $this->seed(RolesAndPermissionsSeeder::class);
+
+        $this->actingAs(User::factory()->withRole(Role::Admin)->create())
+            ->get(route('admin.schedules.print'))->assertOk()
+            ->assertDontSee('id="pin-lock"', false)
+            ->assertDontSee('pin-pending', false)
+            ->assertDontSee('data-install-banner', false);
+    }
+
+    public function test_first_field_page_after_a_password_login_is_marked_once(): void
+    {
+        $this->withoutVite();
+        $officer = User::factory()->withRole(Role::FieldOfficer)->create();
+
+        $this->post('/login', ['email' => $officer->email, 'password' => 'password']);
+
+        $this->get('/field')->assertOk()->assertSee('data-pin-fresh-login', false);
+        $this->get('/field')->assertOk()->assertDontSee('data-pin-fresh-login', false);
     }
 }

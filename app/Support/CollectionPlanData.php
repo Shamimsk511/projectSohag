@@ -19,7 +19,16 @@ final readonly class CollectionPlanData
         public Money $installment,
         public ?array $weekdays,
         public Carbon $startsOn,
+        public ?Carbon $endsOn = null,
     ) {}
+
+    /**
+     * Last day of a term from its first day: the day before start + term (3 years from 12 Oct ends 11 Oct).
+     */
+    public static function endOfTerm(Carbon $startsOn, int $count, string $unit): Carbon
+    {
+        return $startsOn->copy()->addMonthsNoOverflow($count * ($unit === 'years' ? 12 : 1))->subDay();
+    }
 
     /**
      * Unsaved plan, for projecting dates before anything is stored.
@@ -31,6 +40,7 @@ final readonly class CollectionPlanData
             'installment_amount' => $this->installment,
             'weekdays' => $this->weekdays,
             'starts_on' => $this->startsOn->toDateString(),
+            'ends_on' => $this->endsOn?->toDateString(),
         ]);
     }
 }

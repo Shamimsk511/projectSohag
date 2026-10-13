@@ -31,44 +31,50 @@
         ];
     @endphp
 
-    @if ($party->accounts->isNotEmpty())
-        <div class="row g-3 mb-3">
-            @foreach ($party->accounts as $account)
-                <div class="col-sm-6 col-xl-3">
-                    <a href="{{ route('admin.accounts.statement', $account) }}"
-                       @class(['card h-100 text-decoration-none border-2', 'border-primary' => $account->isLoan() && $account->isActive(), 'border-success' => ! $account->isLoan() && $account->isActive(), 'opacity-75' => ! $account->isActive()])>
-                        <div class="card-body">
-                            <div class="d-flex align-items-center gap-2 mb-2">
-                                <span class="fw-semibold">{{ $account->account_number }}</span>
-                                <span class="badge text-bg-info">{{ __('app.accounts.types.'.$account->account_type->value) }}</span>
-                                @unless ($account->isActive())
-                                    <span class="badge text-bg-secondary">{{ __('app.accounts.closed') }}</span>
-                                @endunless
-                            </div>
-                            <div class="text-body-secondary small">{{ $account->isLoan() ? __('app.accounts.outstanding') : ($account->isFdr() ? __('app.accounts.remaining_payback') : __('app.accounts.balance')) }}</div>
-                            <div class="display-6 fw-bold text-nowrap">{{ $balances[$account->id]->format() }}</div>
-                        </div>
-                        <div class="card-footer small text-body-secondary">
-                            <i class="bi bi-journal-text" aria-hidden="true"></i> {{ __('app.parties.view_statement') }}
-                            <i class="bi bi-chevron-right float-end" aria-hidden="true"></i>
-                        </div>
-                    </a>
+    @if ($party->accounts->isEmpty() && $canOpenAccount)
+        <div class="card mb-3 border-primary border-2">
+            <div class="card-body">
+                <h2 class="h5">{{ __('app.parties.first_account') }}</h2>
+                <p class="text-body-secondary">{{ __('app.parties.first_account_hint') }}</p>
+                <div class="d-flex flex-wrap gap-2">
+                    @foreach (['loan' => 'bi-cash-coin', 'saving' => 'bi-piggy-bank', 'fdr' => 'bi-bank'] as $type => $icon)
+                        <a href="{{ route('admin.parties.accounts.create', [$party, 'type' => $type]) }}" class="btn btn-primary btn-lg flex-fill py-3">
+                            <i class="bi {{ $icon }}" aria-hidden="true"></i> {{ __('app.accounts.types.'.$type) }}
+                        </a>
+                    @endforeach
                 </div>
-            @endforeach
-            <div class="col-sm-6 col-xl-3">
-                <a href="{{ route('admin.parties.statement', $party) }}" class="card h-100 text-decoration-none bg-body-tertiary">
-                    <div class="card-body">
-                        <div class="text-body-secondary small">{{ __('app.parties.total_saving') }}</div>
-                        <div class="fs-4 fw-bold text-nowrap mb-2">{{ $totals['saving']->format() }}</div>
-                        <div class="text-body-secondary small">{{ __('app.parties.total_loan') }}</div>
-                        <div class="fs-4 fw-bold text-nowrap">{{ $totals['loan']->format() }}</div>
-                    </div>
-                    <div class="card-footer small text-body-secondary">
-                        <i class="bi bi-journal-text" aria-hidden="true"></i> {{ __('app.parties.statement_link') }}
-                        <i class="bi bi-chevron-right float-end" aria-hidden="true"></i>
-                    </div>
+            </div>
+        </div>
+    @endif
+
+    @if ($party->accounts->isNotEmpty())
+        @php
+            $n = fn (int $value): string => \App\Support\Numerals::localize((string) $value);
+        @endphp
+        <div class="card mb-3 bg-body-tertiary">
+            <div class="card-body d-flex flex-wrap align-items-center gap-4">
+                <div>
+                    <div class="text-body-secondary small">{{ __('app.parties.progress.owes_us') }}</div>
+                    <div class="fs-3 fw-bold text-nowrap">{{ $totals['owes']->format() }}</div>
+                </div>
+                <div>
+                    <div class="text-body-secondary small">{{ __('app.parties.progress.we_hold') }}</div>
+                    <div class="fs-3 fw-bold text-nowrap">{{ $totals['holds']->format() }}</div>
+                </div>
+                <a href="{{ route('admin.parties.statement', $party) }}" class="btn btn-outline-secondary ms-auto">
+                    <i class="bi bi-journal-text" aria-hidden="true"></i> {{ __('app.parties.statement_link') }}
                 </a>
             </div>
+        </div>
+
+        <div class="row g-3 mb-3">
+            @foreach ($party->accounts as $account)
+                @include('admin.parties._progress_card', [
+                    'line' => $progress[$account->id],
+                    'statementUrl' => route('admin.accounts.statement', $account),
+                    'accountUrl' => route('admin.accounts.show', $account),
+                ])
+            @endforeach
         </div>
     @endif
 
@@ -121,6 +127,9 @@
 
         <div class="col-lg-4">
             @include('admin.parties._assignment')
+            @if ($canManagePortal)
+                @include('admin.parties._portal')
+            @endif
             <div class="card mb-3">
                 <div class="card-header d-flex align-items-center">
                     <h3 class="card-title mb-0">{{ __('app.parties.accounts') }}</h3>

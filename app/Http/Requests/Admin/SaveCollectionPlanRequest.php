@@ -4,6 +4,7 @@ namespace App\Http\Requests\Admin;
 
 use App\Enums\PlanFrequency;
 use App\Rules\TakaAmount;
+use App\Support\CollectionPlanData;
 use App\Support\Money;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
@@ -90,8 +91,6 @@ class SaveCollectionPlanRequest extends FormRequest
             return null;
         }
 
-        $months = $this->integer('duration') * ($this->validated('duration_unit') === 'years' ? 12 : 1);
-
-        return $this->startsOn()->addMonthsNoOverflow($months)->subDay();
+        return CollectionPlanData::endOfTerm($this->startsOn(), $this->integer('duration'), (string) $this->validated('duration_unit'));
     }
 }

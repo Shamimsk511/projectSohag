@@ -89,6 +89,14 @@ class Party extends Model
     }
 
     /**
+     * @return HasOne<PortalAccess, $this>
+     */
+    public function portalAccess(): HasOne
+    {
+        return $this->hasOne(PortalAccess::class);
+    }
+
+    /**
      * @return HasOne<PartyAssignment, $this>
      */
     public function activeAssignment(): HasOne

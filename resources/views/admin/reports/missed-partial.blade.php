@@ -66,6 +66,7 @@
                             <td>
                                 {{ $schedule->party->name }}
                                 <div class="small text-body-secondary">{{ $schedule->party->phone }}</div>
+                                <span class="d-print-none"><x-whatsapp.remind :schedule="$schedule" :remaining="$line['remaining']" :badge="$reminded[$schedule->id] ?? null" class="btn-sm mt-1" /></span>
                             </td>
                             <td class="text-nowrap"><a href="{{ route('admin.accounts.show', $schedule->account) }}">{{ $schedule->account->account_number }}</a></td>
                             <td>{{ $schedule->fieldOfficer?->name ?? __('app.reports.missed_partial.unassigned') }}</td>

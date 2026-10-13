@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Enums\TransactionType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\ReverseTransactionRequest;
 use App\Http\Requests\Admin\StoreTransactionRequest;
@@ -22,7 +23,11 @@ class TransactionController extends Controller
             ? __('app.transactions.recorded_with_receipt', ['receipt' => $transaction->receipt_no])
             : __('app.transactions.recorded');
 
-        return redirect()->route('admin.accounts.show', $account)->with('status', $status);
+        $redirect = redirect()->route('admin.accounts.show', $account)->with('status', $status);
+
+        return in_array($transaction->type, [TransactionType::LoanDisbursement, TransactionType::SavingWithdrawal], true)
+            ? $redirect->with('whatsapp_notice', $transaction->id)
+            : $redirect;
     }
 
     public function reverse(ReverseTransactionRequest $request, Transaction $transaction): RedirectResponse

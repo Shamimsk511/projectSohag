@@ -2,13 +2,15 @@
  * Field officer IndexedDB (docs/PWA.md). Plain IndexedDB, no wrapper library.
  * - `today`: one record (`current`), the day-list snapshot embedded in /field.
  * - `pending_collections`: the offline collection queue, keyed by client_uuid, indexed by user_id.
+ * - `pins`: one record per user_id, the hashed field PIN (resources/js/field/pin.js).
  * Bump VERSION and extend upgrade() when adding stores.
  */
 const DB_NAME = 'srijonshil-field';
-const VERSION = 2;
+const VERSION = 3;
 const TODAY = 'today';
 const CURRENT = 'current';
 const QUEUE = 'pending_collections';
+const PINS = 'pins';
 
 function open() {
     return new Promise((resolve, reject) => {
@@ -20,6 +22,9 @@ function open() {
             }
             if (!db.objectStoreNames.contains(QUEUE)) {
                 db.createObjectStore(QUEUE, { keyPath: 'client_uuid' }).createIndex('user_id', 'user_id');
+            }
+            if (!db.objectStoreNames.contains(PINS)) {
+                db.createObjectStore(PINS, { keyPath: 'user_id' });
             }
         };
         request.onsuccess = () => resolve(request.result);
@@ -70,3 +75,7 @@ export const replaceQueued = (oldClientUuid, item) => run(QUEUE, 'readwrite', (s
     store.delete(oldClientUuid);
     return store.add(item);
 });
+
+/** Field PIN record of one user ({ user_id, user_name, salt, hash, failed, created_at } or { user_id, locked: true }). */
+export const getPin = (userId) => run(PINS, 'readonly', (store) => store.get(userId));
+export const savePin = (record) => run(PINS, 'readwrite', (store) => store.put(record));

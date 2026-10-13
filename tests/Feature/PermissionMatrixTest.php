@@ -42,12 +42,14 @@ class PermissionMatrixTest extends TestCase
         'admin.dashboard' => [self::MANAGER, self::ACCOUNTANT],
         'admin.dashboard.live' => [self::MANAGER, self::ACCOUNTANT],
         'admin.search' => [self::MANAGER, self::ACCOUNTANT],
+        'admin.reports.index' => [self::MANAGER, self::ACCOUNTANT],
         'admin.reports.daily-collection' => [self::MANAGER, self::ACCOUNTANT],
         'admin.reports.officer-performance' => [self::MANAGER, self::ACCOUNTANT],
         'admin.reports.outstanding' => [self::MANAGER, self::ACCOUNTANT],
         'admin.reports.missed-partial' => [self::MANAGER, self::ACCOUNTANT],
         'admin.reports.cash-reconciliation' => [self::MANAGER, self::ACCOUNTANT],
         'admin.reports.monthly' => [self::MANAGER, self::ACCOUNTANT],
+        'admin.reports.position' => [self::MANAGER, self::ACCOUNTANT],
         'admin.reports.loan-register' => [self::MANAGER, self::ACCOUNTANT],
         'admin.reports.withdrawal-register' => [self::MANAGER, self::ACCOUNTANT],
         'admin.reports.daily-cash-book' => [self::MANAGER, self::ACCOUNTANT],
@@ -77,6 +79,10 @@ class PermissionMatrixTest extends TestCase
         'admin.uploads.party-photo.destroy' => [self::MANAGER],
         'admin.parties.assignment.store' => [self::MANAGER],
         'admin.parties.assignment.destroy' => [self::MANAGER],
+        'admin.parties.portal.store' => [self::MANAGER],
+        'admin.parties.portal.reset-pin' => [self::MANAGER],
+        'admin.parties.portal.regenerate' => [self::MANAGER],
+        'admin.parties.portal.card' => [self::MANAGER],
 
         'admin.parties.accounts.create' => [self::MANAGER],
         'admin.parties.accounts.store' => [self::MANAGER],
@@ -90,6 +96,7 @@ class PermissionMatrixTest extends TestCase
         'admin.accounts.transactions.store' => [self::MANAGER, self::ACCOUNTANT],
 
         'admin.transactions.receipt' => [self::MANAGER, self::ACCOUNTANT],
+        'admin.whatsapp.log' => [self::MANAGER, self::ACCOUNTANT],
         'admin.transactions.reverse' => [self::MANAGER],
         'admin.office-entries.index' => [self::MANAGER, self::ACCOUNTANT],
         'admin.office-entries.store' => [self::ACCOUNTANT],
@@ -121,6 +128,7 @@ class PermissionMatrixTest extends TestCase
 
         'field.home' => [self::OFFICER],
         'field.sync' => [self::OFFICER],
+        'field.whatsapp.log' => [self::OFFICER],
         'field.api.collections.sync' => [self::OFFICER],
         // Fixtures are another officer's: an officer may only collect on and see receipts of their own rows.
         'field.collections.create' => [],
@@ -135,7 +143,9 @@ class PermissionMatrixTest extends TestCase
      * Routes open to guests or to any signed-in user, not scoped by role.
      */
     private const OPEN = [
-        'home', 'login', 'logout', 'field.offline',
+        'home', 'login', 'logout', 'field.offline', 'portal.link',
+        'portal.start', 'portal.pin', 'portal.pin.check', 'portal.lock', 'portal.home', 'portal.pin.change', 'portal.pin.update',
+        'portal.accounts.show', 'portal.receipts.show', 'portal.offline',
         'password.request', 'password.email', 'password.reset', 'password.update', 'password.confirm',
     ];
 

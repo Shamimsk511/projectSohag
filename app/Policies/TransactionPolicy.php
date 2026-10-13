@@ -3,6 +3,7 @@
 namespace App\Policies;
 
 use App\Enums\Permission;
+use App\Enums\TransactionType;
 use App\Models\Account;
 use App\Models\Transaction;
 use App\Models\User;
@@ -59,5 +60,16 @@ class TransactionPolicy
         return $transaction->receipt_no !== null
             && ($transaction->field_officer_id === $user->id
                 || ($transaction->account !== null && $user->can('view', $transaction->account)));
+    }
+
+    /**
+     * WhatsApp notice to the member about a loan given or a saving withdrawal: office staff who post entries.
+     */
+    public function shareNotice(User $user, Transaction $transaction): bool
+    {
+        return in_array($transaction->type, [TransactionType::LoanDisbursement, TransactionType::SavingWithdrawal], true)
+            && $transaction->account !== null
+            && $user->can(Permission::PostLedgerEntries->value)
+            && $user->can('view', $transaction->account);
     }
 }

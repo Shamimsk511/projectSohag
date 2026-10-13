@@ -46,12 +46,14 @@ class QueryCountTest extends TestCase
             'office' => fn () => route('admin.office-entries.index'),
             'statement' => fn () => route('admin.accounts.statement', $account),
             'account' => fn () => route('admin.accounts.show', $account),
+            'party' => fn () => route('admin.parties.show', $account->party_id),
             'users' => fn () => route('admin.users.index'),
             'dashboard' => fn () => route('admin.dashboard', ['date' => '2026-10-12']),
             'loan register' => fn () => route('admin.reports.loan-register', ['from' => '2026-10-01', 'to' => '2026-10-31']),
             'withdrawals' => fn () => route('admin.reports.withdrawal-register', ['from' => '2026-10-01', 'to' => '2026-10-31']),
             'cash book' => fn () => route('admin.reports.daily-cash-book', ['from' => '2026-10-01', 'to' => '2026-10-31']),
             'monthly' => fn () => route('admin.reports.monthly', ['month' => '2026-10']),
+            'position' => fn () => route('admin.reports.position'),
             'dashboard live' => fn () => route('admin.dashboard.live', ['date' => '2026-10-12']),
         ];
 

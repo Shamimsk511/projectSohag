@@ -6,6 +6,8 @@
 @section('hide_logout', true)
 
 @section('content')
+    {{-- Shown by pin.js when the saved list's user has no PIN on this phone yet (list stays hidden). --}}
+    <div class="alert alert-warning d-none" role="status" data-pin-missing>{{ __('app.pin.missing') }}</div>
     {{-- Filled by field.js from the list saved on the officer's last online visit (textContent only). Collections made here go to the offline queue. --}}
     <div class="d-none" data-offline-today data-timezone="{{ config('app.display_timezone') }}">
         <div class="alert alert-warning" role="status">

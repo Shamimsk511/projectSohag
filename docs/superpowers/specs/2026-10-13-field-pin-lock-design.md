@@ -12,7 +12,7 @@ A lost or borrowed phone must not show an officer's day list, member phones or u
 - Lock moments: app open (new tab / cold start: `sessionStorage` has no unlock marker) and after 5 minutes without interaction or hidden (`visibilitychange`). Last activity kept in `sessionStorage`.
 - No flash: the layout renders with `html.pin-pending` (inline class, CSS hides the main content) when the lock applies; JS removes it after unlock or shows the setup/lock screen. Without JS the class is never added (no-JS form flow keeps working; no JS = no IndexedDB data to protect).
 - Unlock screen: full-screen numeric keypad (48px+ targets, one hand), user name shown.
-- 5 wrong tries: PIN record deleted, then sign out (live page: POST logout; offline: message "sign in online again"). Queue (`pending_collections`) never deleted.
+- 5 wrong tries: PIN record replaced by `{ user_id, locked: true }` (never deleted), then sign out (live page online: POST logout; otherwise message "sign in online again"). A locked record signs out again on every live page and is replaced by a new PIN only on the first `/field` page after a password login (single-use session flag `field_pin_fresh_login` -> `data-pin-fresh-login`; amended 2026-10-13 after review: deleting first let a failed logout reach PIN setup without the password). Queue (`pending_collections`) never deleted.
 - "Forgot PIN": same as 5 wrong tries after a confirm.
 - Offline page: locks with the PIN of the snapshot's user_id. No PIN stored for that user -> snapshot list and queue are not shown; message "open the app online once to set a PIN".
 - Logout keeps the PIN (same officer signs in again without new setup). Another user on the phone sets their own.

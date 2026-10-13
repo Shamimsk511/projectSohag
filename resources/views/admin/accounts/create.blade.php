@@ -17,7 +17,7 @@
                 <div class="d-flex gap-2">
                     @foreach ($types as $type)
                         <input type="radio" class="btn-check" name="account_type" id="type-{{ $type->value }}" value="{{ $type->value }}"
-                               autocomplete="off" required @checked(old('account_type', 'saving') === $type->value)>
+                               autocomplete="off" required @checked(old('account_type', $selectedType->value) === $type->value)>
                         <label class="btn btn-outline-primary flex-fill py-3" for="type-{{ $type->value }}">
                             <i @class(['bi', 'bi-piggy-bank' => $type->value === 'saving', 'bi-cash-coin' => $type->value === 'loan', 'bi-bank' => $type->value === 'fdr']) aria-hidden="true"></i>
                             {{ __('app.accounts.types.'.$type->value) }}
@@ -74,79 +74,106 @@
                     </div>
                 </fieldset>
 
-                {{-- Collection: officer and installment plan, saved with the loan in one step. --}}
-                @php
-                    $frequency = old('frequency', \App\Enums\PlanFrequency::Daily->value);
-                    $weekdays = array_map('intval', (array) old('weekdays', \App\Models\CollectionPlan::DEFAULT_WEEKDAYS));
-                    $today = today(config('app.display_timezone'));
-                    $currentOfficer = $officers->firstWhere('id', $currentOfficerId);
-                @endphp
-                <fieldset class="col-12 border-top pt-3" data-collection-fields>
-                    <legend class="fs-5 fw-semibold">{{ __('app.accounts.collection_group') }}</legend>
-                    <p class="small text-body-secondary">{{ __('app.accounts.collection_hint') }}</p>
-                    <div class="row g-3">
-                        <div class="col-12">
-                            <label for="field_officer_id" class="form-label">{{ __('app.parties.field_officer') }}</label>
-                            @if ($canAssign)
-                                <select id="field_officer_id" name="field_officer_id" @class(['form-select', 'is-invalid' => $errors->has('field_officer_id')])>
-                                    <option value="">{{ $currentOfficer ? __('app.accounts.officer_keep') : __('app.accounts.officer_none') }}</option>
-                                    @foreach ($officers as $officer)
-                                        <option value="{{ $officer->id }}" @selected((int) old('field_officer_id', $currentOfficerId) === $officer->id)>{{ $officer->name }}</option>
-                                    @endforeach
-                                </select>
-                                @error('field_officer_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                            @else
-                                <div class="form-control-plaintext">{{ $currentOfficer?->name ?? __('app.schedules.unassigned') }}</div>
-                            @endif
-                        </div>
-                        <div class="col-md-6">
-                            <label for="frequency" class="form-label">{{ __('app.schedules.frequency') }}</label>
-                            <select id="frequency" name="frequency" @class(['form-select', 'is-invalid' => $errors->has('frequency')])>
-                                @foreach (\App\Enums\PlanFrequency::cases() as $case)
-                                    <option value="{{ $case->value }}" @selected($frequency === $case->value)>{{ __('app.schedules.frequencies.'.$case->value) }}</option>
+            </div>
+
+            {{-- Collection: officer and installment plan, saved with the account in one step (any type). --}}
+            @php
+                $frequency = old('frequency', \App\Enums\PlanFrequency::Daily->value);
+                $weekdays = array_map('intval', (array) old('weekdays', \App\Models\CollectionPlan::DEFAULT_WEEKDAYS));
+                $today = today(config('app.display_timezone'));
+                $currentOfficer = $officers->firstWhere('id', $currentOfficerId);
+            @endphp
+            <fieldset class="border-top pt-3 mb-3" data-collection-fields>
+                <legend class="fs-5 fw-semibold">{{ __('app.accounts.collection_group') }}</legend>
+                <p class="small text-body-secondary">{{ __('app.accounts.collection_hint') }}</p>
+                <div class="row g-3">
+                    <div class="col-12">
+                        <label for="field_officer_id" class="form-label">{{ __('app.parties.field_officer') }}</label>
+                        @if ($canAssign)
+                            <select id="field_officer_id" name="field_officer_id" @class(['form-select', 'is-invalid' => $errors->has('field_officer_id')])>
+                                <option value="">{{ $currentOfficer ? __('app.accounts.officer_keep') : __('app.accounts.officer_none') }}</option>
+                                @foreach ($officers as $officer)
+                                    <option value="{{ $officer->id }}" @selected((int) old('field_officer_id', $currentOfficerId) === $officer->id)>{{ $officer->name }}</option>
                                 @endforeach
                             </select>
-                            @error('frequency')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                            @error('field_officer_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        @else
+                            <div class="form-control-plaintext">{{ $currentOfficer?->name ?? __('app.schedules.unassigned') }}</div>
+                        @endif
+                    </div>
+                    <div class="col-md-6">
+                        <label for="frequency" class="form-label">{{ __('app.schedules.frequency') }}</label>
+                        <select id="frequency" name="frequency" @class(['form-select', 'is-invalid' => $errors->has('frequency')])>
+                            @foreach (\App\Enums\PlanFrequency::cases() as $case)
+                                <option value="{{ $case->value }}" @selected($frequency === $case->value)>{{ __('app.schedules.frequencies.'.$case->value) }}</option>
+                            @endforeach
+                        </select>
+                        @error('frequency')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                    </div>
+                    <div class="col-md-6">
+                        <x-form.input name="starts_on" type="date" :label="__('app.accounts.first_collection')"
+                                      :value="$today->copy()->addDay()->toDateString()" :min="$today->toDateString()" />
+                    </div>
+                    <fieldset class="col-12" data-daily-only>
+                        <legend class="form-label fs-6">{{ __('app.schedules.weekdays') }}</legend>
+                        <div class="d-flex flex-wrap gap-2">
+                            @foreach ([6, 0, 1, 2, 3, 4, 5] as $day)
+                                <input class="btn-check" type="checkbox" name="weekdays[]" value="{{ $day }}" id="weekday-{{ $day }}" autocomplete="off"
+                                       @checked(in_array($day, $weekdays, true))>
+                                <label class="btn btn-outline-primary" for="weekday-{{ $day }}">{{ __('app.schedules.weekday_names')[$day] }}</label>
+                            @endforeach
                         </div>
-                        <div class="col-md-6">
-                            <x-form.input name="starts_on" type="date" :label="__('app.accounts.first_collection')"
-                                          :value="$today->copy()->addDay()->toDateString()" :min="$today->toDateString()" />
-                        </div>
-                        <fieldset class="col-12" data-daily-only>
-                            <legend class="form-label fs-6">{{ __('app.schedules.weekdays') }}</legend>
-                            <div class="d-flex flex-wrap gap-2">
-                                @foreach ([6, 0, 1, 2, 3, 4, 5] as $day)
-                                    <input class="btn-check" type="checkbox" name="weekdays[]" value="{{ $day }}" id="weekday-{{ $day }}" autocomplete="off"
-                                           @checked(in_array($day, $weekdays, true))>
-                                    <label class="btn btn-outline-primary" for="weekday-{{ $day }}">{{ __('app.schedules.weekday_names')[$day] }}</label>
-                                @endforeach
-                            </div>
-                            @error('weekdays')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                        </fieldset>
-                        <div class="col-md-6">
-                            <x-form.input name="installment_amount" :label="__('app.schedules.installment_amount').' (৳)'" inputmode="decimal" autocomplete="off" />
-                        </div>
-                        <div class="col-md-6">
-                            <x-form.input name="installment_count" type="number" :label="__('app.accounts.installment_count')" min="1" max="1000" step="1"
+                        @error('weekdays')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                    </fieldset>
+                    <div class="col-md-6">
+                        <x-form.input name="installment_amount" :label="__('app.schedules.installment_amount').' (৳)'" inputmode="decimal" autocomplete="off" />
+                    </div>
+                    <div class="col-md-6" data-loan-only>
+                        <x-form.input name="installment_count" type="number" :label="__('app.accounts.installment_count')" min="1" max="1000" step="1"
+                                      inputmode="numeric" autocomplete="off" />
+                    </div>
+                    <input type="hidden" name="installment_basis" value="{{ old('installment_basis') }}">
+                    <div class="col-12 form-text mt-1" data-loan-only>{{ __('app.accounts.installment_hint') }}</div>
+                    <div class="col-12 row g-2 m-0 p-0" data-saving-only>
+                        <div class="col-6 col-md-3">
+                            <x-form.input name="duration" type="number" :label="__('app.schedules.duration')" min="1" max="600" step="1"
                                           inputmode="numeric" autocomplete="off" />
                         </div>
-                        <input type="hidden" name="installment_basis" value="{{ old('installment_basis') }}">
-                        <div class="col-12 form-text mt-1">{{ __('app.accounts.installment_hint') }}</div>
+                        <div class="col-6 col-md-3">
+                            <label for="duration_unit" class="form-label">{{ __('app.schedules.duration_unit') }}</label>
+                            <select id="duration_unit" name="duration_unit" @class(['form-select', 'is-invalid' => $errors->has('duration_unit')])>
+                                @foreach (__('app.schedules.duration_units') as $unit => $unitLabel)
+                                    <option value="{{ $unit }}" @selected(old('duration_unit', 'years') === $unit)>{{ $unitLabel }}</option>
+                                @endforeach
+                            </select>
+                            @error('duration_unit')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        </div>
+                        <div class="col-md-6">
+                            <x-form.input name="ends_on" type="date" :label="__('app.schedules.ends_on')" :min="$today->toDateString()"
+                                          :hint="__('app.schedules.ends_on_hint')" />
+                        </div>
+                        <div class="col-12 form-text mt-0">{{ __('app.schedules.duration_hint') }}</div>
                         <div class="col-12">
-                            <div class="alert alert-info mb-0" data-loan-preview data-url="{{ route('admin.loans.preview') }}" hidden>
-                                <div class="fw-semibold mb-1">{{ __('app.accounts.preview.title') }}</div>
-                                <div>{{ __('app.accounts.contract_amount') }}: <strong data-preview="contract"></strong></div>
-                                <div data-preview-carried>{{ __('app.accounts.preview.to_collect') }}: <strong data-preview="to_collect"></strong></div>
-                                <div>{{ __('app.accounts.preview.installments') }}: <strong data-preview="count_label"></strong> × <strong data-preview="installment"></strong></div>
-                                <div>{{ __('app.accounts.preview.last_installment') }}: <strong data-preview="last_installment"></strong></div>
-                                <div>{{ __('app.accounts.preview.first_date') }}: <strong data-preview="first_date"></strong></div>
-                                <div>{{ __('app.accounts.preview.last_date') }}: <strong data-preview="last_date"></strong></div>
-                                <div class="small text-body-secondary mt-1">{{ __('app.accounts.preview.hint') }}</div>
+                            <div class="alert alert-info py-2 mb-0" data-plan-estimate hidden>
+                                {{ __('app.schedules.estimated_total') }}: <span class="fw-semibold fs-5" data-plan-estimate-value></span>
+                                <div class="small">{{ __('app.schedules.estimated_total_hint') }}</div>
                             </div>
                         </div>
                     </div>
-                </fieldset>
-            </div>
+                    <div class="col-12" data-loan-only>
+                        <div class="alert alert-info mb-0" data-loan-preview data-url="{{ route('admin.loans.preview') }}" hidden>
+                            <div class="fw-semibold mb-1">{{ __('app.accounts.preview.title') }}</div>
+                            <div>{{ __('app.accounts.contract_amount') }}: <strong data-preview="contract"></strong></div>
+                            <div data-preview-carried>{{ __('app.accounts.preview.to_collect') }}: <strong data-preview="to_collect"></strong></div>
+                            <div>{{ __('app.accounts.preview.installments') }}: <strong data-preview="count_label"></strong> × <strong data-preview="installment"></strong></div>
+                            <div>{{ __('app.accounts.preview.last_installment') }}: <strong data-preview="last_installment"></strong></div>
+                            <div>{{ __('app.accounts.preview.first_date') }}: <strong data-preview="first_date"></strong></div>
+                            <div>{{ __('app.accounts.preview.last_date') }}: <strong data-preview="last_date"></strong></div>
+                            <div class="small text-body-secondary mt-1">{{ __('app.accounts.preview.hint') }}</div>
+                        </div>
+                    </div>
+                </div>
+            </fieldset>
 
             <div class="mb-3">
                 <x-form.input name="opened_at" type="date" :label="__('app.accounts.opened_at')" required

@@ -57,22 +57,24 @@ class SettingsTest extends TestCase
             ->assertSessionHasErrors('cash_handover_mode');
     }
 
-    public function test_cash_pages_sit_in_a_cash_menu_and_settings_in_a_settings_menu(): void
+    public function test_money_pages_sit_in_a_money_menu_and_settings_in_a_settings_menu(): void
     {
         $this->actingAs(User::factory()->withRole(Role::Admin)->create())
             ->get(route('admin.dashboard'))
             ->assertOk()
             ->assertSee('nav-indent', false)
-            ->assertSeeInOrder([__('app.menu.cash'), __('app.cash.title'), __('app.closings.title'), __('app.reports.cash_reconciliation.title')])
-            ->assertSeeInOrder([__('app.menu.settings'), __('app.areas.title'), __('app.holidays.title'), __('app.users.title'), __('app.settings.title')]);
+            ->assertSeeInOrder([__('app.menu.money'), __('app.reports.position.title'), __('app.cash.title'), __('app.office_entries.title'), __('app.closings.title')])
+            ->assertSeeInOrder([__('app.menu.settings'), __('app.areas.title'), __('app.holidays.title'), __('app.office_heads.title'), __('app.users.title'), __('app.opening_cash.title'), __('app.settings.title')]);
     }
 
-    public function test_accountant_sees_the_cash_menu_but_no_settings_menu(): void
+    public function test_accountant_sees_the_money_menu_and_only_office_heads_under_settings(): void
     {
         $this->actingAs(User::factory()->withRole(Role::Accountant)->create())
             ->get(route('admin.dashboard'))
             ->assertOk()
-            ->assertSee(__('app.menu.cash'))
-            ->assertDontSee(__('app.menu.settings'));
+            ->assertSee(__('app.menu.money'))
+            ->assertSeeInOrder([__('app.menu.settings'), __('app.office_heads.title')])
+            ->assertDontSee(__('app.users.title'))
+            ->assertDontSee(__('app.settings.title'));
     }
 }

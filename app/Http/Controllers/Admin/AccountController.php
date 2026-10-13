@@ -18,11 +18,12 @@ use App\Models\Party;
 use App\Models\Transaction;
 use App\Models\User;
 use App\Services\AccountService;
+use App\Services\AccountSetupService;
 use App\Services\CollectionService;
 use App\Services\LedgerService;
-use App\Services\LoanSetupService;
 use App\Support\Money;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\View\View;
 
@@ -33,7 +34,7 @@ class AccountController extends Controller
 
     public function __construct(private readonly AccountService $accounts) {}
 
-    public function create(Party $party): View
+    public function create(Request $request, Party $party): View
     {
         Gate::authorize('view', $party);
         Gate::authorize('create', Account::class);
@@ -41,6 +42,7 @@ class AccountController extends Controller
         return view('admin.accounts.create', [
             'party' => $party,
             'types' => AccountType::cases(),
+            'selectedType' => AccountType::tryFrom($request->string('type')->value()) ?? AccountType::Saving,
             'canCarryIn' => Gate::allows(Permission::SetOpeningBalances->value),
             'officers' => User::query()->activeFieldOfficers()->orderBy('name')->get(['id', 'name']),
             'currentOfficerId' => $party->activeAssignment()->value('field_officer_id'),
@@ -48,25 +50,28 @@ class AccountController extends Controller
         ]);
     }
 
-    public function store(StoreAccountRequest $request, Party $party, LoanSetupService $loanSetup): RedirectResponse
+    public function store(StoreAccountRequest $request, Party $party, AccountSetupService $setup): RedirectResponse
     {
-        $account = match (true) {
-            $request->accountType() === AccountType::Loan => $loanSetup->open(
-                fn (): Account => $request->isExistingLoan()
-                    ? $this->accounts->openExistingLoan(
-                        $party, $request->principalAmount(), $request->agreedExtra(), $request->receivedBefore(),
-                        $request->openedAt(), $request->carriedAsOf(), $this->actor(),
-                    )
-                    : $this->accounts->openLoan($party, $request->principalAmount(), $request->agreedExtra(), $request->paymentMethod(), $request->openedAt(), $this->actor()),
-                $request->fieldOfficer(),
-                $request->collectionPlan(),
-                $this->actor(),
-            ),
-            $request->accountType() === AccountType::Fdr => $this->accounts->openFdr($party, $request->agreedAmount(), $request->openedAt(), $this->actor()),
-            default => $this->accounts->openSaving($party, $request->agreedAmount(), $request->openedAt(), $this->actor()),
-        };
+        $account = $setup->open(
+            fn (): Account => match (true) {
+                $request->isExistingLoan() => $this->accounts->openExistingLoan(
+                    $party, $request->principalAmount(), $request->agreedExtra(), $request->receivedBefore(),
+                    $request->openedAt(), $request->carriedAsOf(), $this->actor(),
+                ),
+                $request->accountType() === AccountType::Loan => $this->accounts->openLoan($party, $request->principalAmount(), $request->agreedExtra(), $request->paymentMethod(), $request->openedAt(), $this->actor()),
+                $request->accountType() === AccountType::Fdr => $this->accounts->openFdr($party, $request->agreedAmount(), $request->openedAt(), $this->actor()),
+                default => $this->accounts->openSaving($party, $request->agreedAmount(), $request->openedAt(), $this->actor()),
+            },
+            $request->fieldOfficer(),
+            $request->collectionPlan(),
+            $this->actor(),
+        );
 
-        return redirect()->route('admin.accounts.show', $account)->with('status', __('app.accounts.opened'));
+        $notice = Transaction::query()->where('account_id', $account->id)->where('type', TransactionType::LoanDisbursement)->value('id');
+
+        return redirect()->route('admin.accounts.show', $account)
+            ->with('status', __('app.accounts.opened'))
+            ->with('whatsapp_notice', $notice);
     }
 
     public function show(Account $account, LedgerService $ledger, CollectionService $collections): View
@@ -79,6 +84,9 @@ class AccountController extends Controller
         return view('admin.accounts.show', [
             'account' => $account,
             'loanProgress' => $collections->loanProgress($account),
+            'notice' => session('whatsapp_notice')
+                ? Transaction::query()->where('account_id', $account->id)->find(session('whatsapp_notice'))?->setRelation('account', $account)
+                : null,
             'received' => match ($account->account_type) {
                 AccountType::Loan => $ledger->loanReceived($account),
                 AccountType::Fdr => $ledger->fdrDeposited($account),
@@ -148,6 +156,6 @@ class AccountController extends Controller
     {
         $this->accounts->close($account, $request->validated('close_reason'), $this->actor());
 
-        return redirect()->route('admin.accounts.show', $account)->with('status', __('app.accounts.closed_message'));
+        return back(fallback: route('admin.accounts.show', $account))->with('status', __('app.accounts.closed_message'));
     }
 }

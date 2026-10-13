@@ -34,6 +34,9 @@
     @if (session('status'))
         <div class="alert alert-success d-flex align-items-center gap-2 fs-6">
             <i class="bi bi-check-circle-fill fs-4" aria-hidden="true"></i> {{ session('status') }}
+            @if ($notice)
+                <x-whatsapp.notice :transaction="$notice" :account="$account" class="ms-auto" />
+            @endif
         </div>
     @endif
 
@@ -288,6 +291,9 @@
                                     @if ($transaction->description)
                                         <span>{{ $transaction->description }}</span>
                                     @endif
+                                    @unless ($line->reversed || $isReversal)
+                                        <x-whatsapp.notice :transaction="$transaction" :account="$account" class="btn-sm" />
+                                    @endunless
                                     <span class="ms-auto">{{ __('app.accounts.statement_running.'.$kind) }}: <span class="fw-semibold text-body">{{ $line->running->format() }}</span></span>
                                 </div>
                             </li>

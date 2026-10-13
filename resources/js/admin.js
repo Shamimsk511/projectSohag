@@ -12,8 +12,11 @@ import * as bootstrap from 'bootstrap';
 import { OverlayScrollbars } from 'overlayscrollbars';
 import 'admin-lte';
 import './admin/top-bar.js';
+import { initWhatsAppButtons } from './whatsapp.js';
 
 window.bootstrap = bootstrap;
+
+initWhatsAppButtons();
 
 // The package only initialises sidebar scrollbars when it loads OverlayScrollbars
 // itself; with bundling it is our job. Skipped on mobile to keep touch scrolling native.

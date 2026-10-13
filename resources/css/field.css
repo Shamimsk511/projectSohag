@@ -65,3 +65,45 @@
         font-size: 1.15rem;
     }
 }
+
+/* PIN lock (resources/js/field/pin.js): page content stays hidden until unlocked. */
+.pin-pending body > header,
+.pin-pending body > main {
+    visibility: hidden;
+}
+
+.pin-lock {
+    position: fixed;
+    inset: 0;
+    z-index: 1090;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    overflow-y: auto;
+    background: var(--bs-body-bg);
+}
+
+.pin-lock-inner {
+    width: 100%;
+    max-width: 20rem;
+    text-align: center;
+}
+
+.pin-dots {
+    min-height: 3rem;
+    margin: 1rem 0 0.5rem;
+    font-size: 2rem;
+    letter-spacing: 0.5rem;
+}
+
+.pin-pad {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem;
+}
+
+.pin-pad .btn {
+    min-height: 64px;
+    font-size: 1.5rem;
+}

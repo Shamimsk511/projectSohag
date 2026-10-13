@@ -1,4 +1,6 @@
 @php
+    $receiptRoute ??= 'admin.transactions.receipt';
+    $showNotes ??= true;
     $date = fn (?\Illuminate\Support\Carbon $value): ?string => $value ? \App\Support\Numerals::localize($value->format('d/m/Y')) : null;
     $type = $account->account_type->value;
     $reversible = fn (\App\Support\StatementLine $line): bool => $actions && $account->isActive() && ! $line->reversed
@@ -44,13 +46,13 @@
                                         {{ __('app.accounts.statement_reversal_of', ['ref' => $transaction->reversedTransaction->receipt_no ?? $date($transaction->reversedTransaction->transaction_date)]) }}
                                     </div>
                                 @endif
-                                @if ($transaction->description)
+                                @if ($showNotes && $transaction->description)
                                     <div class="small text-body-secondary">{{ $transaction->description }}</div>
                                 @endif
                             </td>
                             <td class="text-nowrap">
                                 @if ($transaction->receipt_no)
-                                    <a href="{{ route('admin.transactions.receipt', $transaction) }}" target="_blank" rel="noopener">{{ $transaction->receipt_no }}</a>
+                                    <a href="{{ route($receiptRoute, $transaction) }}" @if ($receiptRoute !== 'portal.receipts.show') target="_blank" rel="noopener" @endif>{{ $transaction->receipt_no }}</a>
                                 @else
                                     {{ $transaction->reference }}
                                 @endif

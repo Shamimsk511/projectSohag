@@ -77,6 +77,71 @@ class DashboardTest extends TestCase
         $this->assertCount(2, $figures['officers']);
     }
 
+    public function test_dashboard_lists_who_has_not_paid_and_each_officers_members(): void
+    {
+        $paidLoan = Account::factory()->loan('10000')->create();
+        $partialLoan = Account::factory()->loan('10000')->create();
+        $pendingSaving = Account::factory()->create();
+        $noOfficer = Account::factory()->create();
+        $paidLoan->party->update(['name' => 'Aaron Paid']);
+        $partialLoan->party->update(['name' => 'Zara Partial']);
+        $pendingSaving->party->update(['name' => 'Mona Pending']);
+        $noOfficer->party->update(['name' => 'Bina Unassigned']);
+
+        $paid = $this->row($this->alice, $paidLoan, '500', ScheduleStatus::Paid);
+        $partial = $this->row($this->alice, $partialLoan, '300', ScheduleStatus::PartiallyPaid);
+        $this->row($this->alice, $pendingSaving, '200', ScheduleStatus::Pending);
+        $this->row(null, $noOfficer, '100', ScheduleStatus::Pending);
+        $this->row($this->bob, Account::factory()->create(), '999', ScheduleStatus::Cancelled);
+        $this->collect($this->alice, $paidLoan, $paid, '500');
+        $this->collect($this->alice, $partialLoan, $partial, '100');
+
+        // Older arrears: two rows of one member + one of another inside 30 days, one too old, one paid.
+        $this->row($this->bob, $partialLoan, '50', ScheduleStatus::Missed, '2026-10-10');
+        $this->row($this->bob, $partialLoan, '50', ScheduleStatus::PartiallyPaid, '2026-10-11');
+        $this->row($this->bob, $pendingSaving, '50', ScheduleStatus::Missed, '2026-09-13');
+        $this->row($this->bob, $noOfficer, '50', ScheduleStatus::Missed, '2026-09-11');
+        $this->row($this->bob, $paidLoan, '50', ScheduleStatus::Paid, '2026-10-11');
+
+        $figures = app(ReportService::class)->dashboard(Carbon::parse('2026-10-12'));
+
+        $unpaid = $figures['unpaid'];
+        $this->assertSame(3, $unpaid['members']);
+        $this->assertSame(Money::fromTaka('500')->poisha, $unpaid['amount']->poisha); // 200 + 200 + 100
+        $this->assertSame(['Bina Unassigned', 'Mona Pending', 'Zara Partial'], array_map(
+            fn (array $line): string => $line['schedule']->party->name,
+            $unpaid['rows'],
+        ));
+        $this->assertSame(Money::fromTaka('200')->poisha, $unpaid['rows'][2]['remaining']->poisha);
+        $this->assertSame(2, $unpaid['older_members']);
+
+        $alice = collect($figures['officers'])->firstWhere('officer.id', $this->alice->id);
+        $this->assertSame(['Mona Pending', 'Zara Partial', 'Aaron Paid'], array_map(
+            fn (array $line): string => $line['schedule']->party->name,
+            $alice['members'],
+        )); // unpaid first, then paid
+        $zara = $alice['members'][1];
+        $this->assertSame(Money::fromTaka('100')->poisha, $zara['collected']->poisha);
+        $this->assertSame(Money::fromTaka('200')->poisha, $zara['remaining']->poisha);
+        $this->assertSame(0, $alice['members'][2]['remaining']->poisha);
+    }
+
+    public function test_page_shows_today_tiles_unpaid_members_and_officer_list(): void
+    {
+        $account = Account::factory()->create();
+        $account->party->update(['name' => 'Mona Pending', 'phone' => '01711000000']);
+        $this->row($this->alice, $account, '200', ScheduleStatus::Pending);
+
+        $this->actingAs(User::factory()->withRole(Role::Manager)->create())
+            ->get(route('admin.dashboard', ['date' => '2026-10-12']))
+            ->assertOk()
+            ->assertSee(__('app.dash.not_paid'))
+            ->assertSee('Mona Pending')
+            ->assertSee('tel:01711000000', false)
+            ->assertSee('id="officer-members-'.$this->alice->id.'"', false)
+            ->assertSee(e(route('admin.reports.missed-partial', ['from' => '2026-09-12', 'to' => '2026-10-11'])), false);
+    }
+
     public function test_page_renders_for_office_roles_and_respects_the_date_filter(): void
     {
         $this->row($this->alice, Account::factory()->loan()->create(), '500', ScheduleStatus::Pending);

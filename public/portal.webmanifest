@@ -1,0 +1,16 @@
+{
+    "name": "সৃজনশীল সদস্য",
+    "short_name": "সদস্য",
+    "lang": "bn",
+    "start_url": "/portal",
+    "scope": "/portal",
+    "display": "standalone",
+    "orientation": "portrait",
+    "theme_color": "#198754",
+    "background_color": "#ffffff",
+    "icons": [
+        { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+        { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+        { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    ]
+}

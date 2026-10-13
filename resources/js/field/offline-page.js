@@ -3,6 +3,7 @@
  * queue collections on its rows, with a provisional receipt. Nothing here talks to the server.
  */
 import { loadToday } from './db.js';
+import { releaseLock, requirePin, showLockError } from './pin.js';
 import { fill, formatPoisha, parseTaka, poishaToTaka, queueCollection, renderQueue, uuid } from './queue.js';
 
 const STATUS_BADGES = { paid: 'text-bg-success', partially_paid: 'text-bg-warning', missed: 'text-bg-danger' };
@@ -139,12 +140,23 @@ function start(list, snapshot) {
 
 export function initOfflinePage() {
     const list = document.querySelector('[data-offline-today]');
-    if (!list || !('indexedDB' in window)) {
+    if (!list) {
         return;
     }
-    loadToday().then((snapshot) => {
-        if (snapshot) {
+    if (!('indexedDB' in window)) {
+        releaseLock();
+        return;
+    }
+    loadToday().catch(() => null).then(async (snapshot) => {
+        if (!snapshot) {
+            releaseLock(); // nothing saved (or unreadable): the generic offline text is all there is
+            return;
+        }
+        const outcome = await requirePin(snapshot.user_id, '', { live: false });
+        if (outcome === 'missing') {
+            document.querySelector('[data-pin-missing]')?.classList.remove('d-none');
+        } else if (outcome === 'unlocked') {
             start(list, snapshot);
         }
-    }).catch(() => {});
+    }).catch(showLockError);
 }

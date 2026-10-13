@@ -12,6 +12,7 @@ use App\Support\Money;
 use App\Support\Numerals;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 
@@ -85,14 +86,33 @@ class CollectionController extends Controller
             ])->values()->all(),
         ];
 
-        // One card per client: today's rows first, then their earlier unpaid ones.
-        $clients = $rows->groupBy('party_id')
+        // One card per client: today's rows first, then their earlier unpaid ones. Clients with
+        // something still to collect come first; fully paid ones are folded away below.
+        [$unpaidClients, $paidClients] = $rows->groupBy('party_id')
             ->sortBy(fn (Collection $partyRows): string => $partyRows->first()->party->name)
-            ->values();
+            ->values()
+            ->partition(fn (Collection $partyRows): bool => $partyRows->contains(
+                fn (CollectionSchedule $schedule): bool => $schedule->status->isCollectable() && $remaining[$schedule->id]->isPositive(),
+            ));
+
+        // End-of-day line: members fully paid today, everything this officer received today, cash to hand over.
+        $todayByParty = $schedules->groupBy('party_id');
+        $dayLine = __('app.field.day_line', [
+            'paid' => Numerals::localize((string) $todayByParty->filter(
+                fn (Collection $partyRows): bool => $partyRows->every(fn (CollectionSchedule $schedule): bool => ! $remaining[$schedule->id]->isPositive()),
+            )->count()),
+            'total' => Numerals::localize((string) $todayByParty->count()),
+            'collected' => Money::fromPoisha((int) $this->ledger->collectionRows(Carbon::parse($today->toDateString()))
+                ->where('field_officer_id', $this->actor()->id)
+                ->sum('amount'))->format(),
+            'cash' => $cashInHand->format(),
+        ]);
 
         return view('field.home', [
             'schedules' => $schedules,
-            'clients' => $clients,
+            'unpaidClients' => $unpaidClients->values(),
+            'paidClients' => $paidClients->values(),
+            'dayLine' => $dayLine,
             'today' => $today->toDateString(),
             'collected' => $collected,
             'remaining' => $remaining,

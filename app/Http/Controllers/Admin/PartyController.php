@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Enums\AccountType;
+use App\Enums\Permission;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\PartyStatementRequest;
 use App\Http\Requests\Admin\PartyTableRequest;
@@ -17,11 +17,13 @@ use App\Services\LedgerService;
 use App\Services\PartyPhotoStore;
 use App\Services\PartyService;
 use App\Services\PartyTableQuery;
+use App\Services\ReportService;
 use App\Support\Money;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
@@ -67,33 +69,45 @@ class PartyController extends Controller
     {
         Gate::authorize('create', Party::class);
 
-        return view('admin.parties.create', ['party' => new Party, 'areas' => $this->areaOptions(null)]);
+        return view('admin.parties.create', [
+            'party' => new Party,
+            'areas' => $this->areaOptions(null),
+            'officers' => Gate::allows(Permission::AssignParties->value) ? User::activeFieldOfficers()->orderBy('name')->get(['id', 'name']) : null,
+        ]);
     }
 
     public function store(StorePartyRequest $request): RedirectResponse
     {
-        $party = $this->parties->create($request->safe()->except('photo'), $this->takePhotoToken($request), $this->actor());
+        $party = $this->parties->create(
+            $request->safe()->except(['photo', 'field_officer_id']),
+            $this->takePhotoToken($request),
+            $this->actor(),
+            $request->fieldOfficer(),
+        );
 
         return redirect()->route('admin.parties.show', $party)->with('status', __('app.parties.created'));
     }
 
-    public function show(Party $party, LedgerService $ledger): View
+    public function show(Party $party, ReportService $reports): View
     {
         Gate::authorize('view', $party);
 
-        $party->load(['area', 'assignments.fieldOfficer', 'assignments.assignedBy', 'accounts' => fn ($accounts) => $accounts->orderBy('closed_at')->orderBy('id')]);
+        $party->load(['area', 'assignments.fieldOfficer', 'assignments.assignedBy', 'portalAccess', 'accounts' => fn ($accounts) => $accounts->orderBy('closed_at')->orderBy('id')]);
 
-        $balances = $party->accounts->mapWithKeys(fn (Account $account): array => [$account->id => $ledger->remainingBalance($account)]);
+        $progress = $reports->memberAccounts($party->accounts, Carbon::parse(today(config('app.display_timezone'))->toDateString()));
+        $sum = fn (callable $filter): Money => Money::fromPoisha($party->accounts->filter($filter)->sum(fn (Account $account): int => $progress[$account->id]['remaining']->poisha));
 
         return view('admin.parties.show', [
             'party' => $party,
-            'balances' => $balances,
+            'progress' => $progress,
             'totals' => [
-                'saving' => Money::fromPoisha($party->accounts->filter(fn (Account $account): bool => $account->account_type === AccountType::Saving)->sum(fn (Account $account): int => $balances[$account->id]->poisha)),
-                'loan' => Money::fromPoisha($party->accounts->filter->isLoan()->sum(fn (Account $account): int => $balances[$account->id]->poisha)),
+                'owes' => $sum(fn (Account $account): bool => $account->isLoan()),
+                'holds' => $sum(fn (Account $account): bool => ! $account->isLoan()),
             ],
             'currentAssignment' => $party->assignments->first(fn (PartyAssignment $assignment): bool => $assignment->isActive()),
             'officers' => Gate::allows('assign', $party) ? User::activeFieldOfficers()->orderBy('name')->get() : collect(),
+            'canOpenAccount' => Gate::allows('create', Account::class) && $party->isActive(),
+            'canManagePortal' => Gate::allows('managePortal', $party),
         ]);
     }
 

@@ -15,6 +15,7 @@ use App\Http\Controllers\Admin\OpeningBalanceController;
 use App\Http\Controllers\Admin\PartyAssignmentController;
 use App\Http\Controllers\Admin\PartyController;
 use App\Http\Controllers\Admin\PartyPhotoUploadController;
+use App\Http\Controllers\Admin\PortalAccessController;
 use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\Admin\ScheduleController;
 use App\Http\Controllers\Admin\SearchController;
@@ -25,7 +26,11 @@ use App\Http\Controllers\Field\CollectionController;
 use App\Http\Controllers\Field\CollectionSyncController;
 use App\Http\Controllers\Field\PartyCollectionController;
 use App\Http\Controllers\HomeController;
+use App\Http\Controllers\Portal\AccessController as PortalLinkController;
+use App\Http\Controllers\Portal\PinController;
+use App\Http\Controllers\Portal\PortalController;
 use App\Http\Controllers\ReceiptController;
+use App\Http\Controllers\WhatsAppLogController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use Spatie\Permission\Middleware\RoleMiddleware;
@@ -39,11 +44,13 @@ Route::middleware(['auth', RoleMiddleware::using(Role::names(Role::office()))])
         Route::get('/', DashboardController::class)->name('dashboard');
         Route::get('dashboard/live', [DashboardController::class, 'live'])->name('dashboard.live');
         Route::get('search', SearchController::class)->name('search');
+        Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
         Route::get('reports/daily-collection', [ReportController::class, 'dailyCollection'])->name('reports.daily-collection');
         Route::get('reports/officer-performance', [ReportController::class, 'officerPerformance'])->name('reports.officer-performance');
         Route::get('reports/outstanding', [ReportController::class, 'outstanding'])->name('reports.outstanding');
         Route::get('reports/missed-partial', [ReportController::class, 'missedPartial'])->name('reports.missed-partial');
         Route::get('reports/cash-reconciliation', [ReportController::class, 'cashReconciliation'])->name('reports.cash-reconciliation');
+        Route::get('reports/position', [ReportController::class, 'position'])->name('reports.position');
         Route::get('reports/monthly', [ReportController::class, 'monthly'])->name('reports.monthly');
         Route::get('reports/loan-register', [ReportController::class, 'loanRegister'])->name('reports.loan-register');
         Route::get('reports/withdrawal-register', [ReportController::class, 'withdrawalRegister'])->name('reports.withdrawal-register');
@@ -56,6 +63,10 @@ Route::middleware(['auth', RoleMiddleware::using(Role::names(Role::office()))])
         Route::resource('parties', PartyController::class)->except(['destroy']);
         Route::post('parties/{party}/assignment', [PartyAssignmentController::class, 'store'])->name('parties.assignment.store');
         Route::delete('parties/{party}/assignment', [PartyAssignmentController::class, 'destroy'])->name('parties.assignment.destroy');
+        Route::post('parties/{party}/portal', [PortalAccessController::class, 'store'])->name('parties.portal.store');
+        Route::post('parties/{party}/portal/reset-pin', [PortalAccessController::class, 'resetPin'])->name('parties.portal.reset-pin');
+        Route::post('parties/{party}/portal/regenerate', [PortalAccessController::class, 'regenerate'])->name('parties.portal.regenerate');
+        Route::get('parties/{party}/portal/card', [PortalAccessController::class, 'card'])->name('parties.portal.card');
         Route::get('parties/{party}/accounts/create', [AccountController::class, 'create'])->name('parties.accounts.create');
         Route::post('parties/{party}/accounts', [AccountController::class, 'store'])->name('parties.accounts.store');
         Route::get('loans/preview', LoanPreviewController::class)->name('loans.preview');
@@ -81,6 +92,7 @@ Route::middleware(['auth', RoleMiddleware::using(Role::names(Role::office()))])
         Route::post('opening-cash', [OpeningBalanceController::class, 'store'])->name('opening-cash.store');
         Route::get('settings', [SettingController::class, 'edit'])->name('settings.edit');
         Route::put('settings', [SettingController::class, 'update'])->name('settings.update');
+        Route::post('whatsapp/log', WhatsAppLogController::class)->middleware('throttle:60,1,whatsapp')->name('whatsapp.log');
         Route::get('transactions/{transaction}/receipt', [ReceiptController::class, 'show'])->name('transactions.receipt');
         Route::post('transactions/{transaction}/reverse', [TransactionController::class, 'reverse'])->name('transactions.reverse');
         Route::post('uploads/party-photo', [PartyPhotoUploadController::class, 'store'])->name('uploads.party-photo.store');
@@ -89,6 +101,25 @@ Route::middleware(['auth', RoleMiddleware::using(Role::names(Role::office()))])
 
 // Public: the service worker precaches it as the offline fallback for /field pages.
 Route::view('field/offline', 'field.offline')->name('field.offline');
+
+// Public: the member's secret portal link (Task 2 of the member portal fills the controller).
+Route::get('m/{token}', [PortalLinkController::class, 'open'])
+    ->where('token', '[A-Za-z0-9]{40}')->middleware(['throttle:30,1,portal-link', 'cache.headers:no_store;private'])->name('portal.link');
+
+Route::prefix('portal')->name('portal.')->middleware('cache.headers:no_store;private')->group(function (): void {
+    Route::get('start', [PortalLinkController::class, 'start'])->name('start');
+    Route::get('pin', [PinController::class, 'show'])->name('pin');
+    Route::post('pin', [PinController::class, 'check'])->middleware('throttle:10,1,portal-pin')->name('pin.check');
+    Route::post('lock', [PinController::class, 'lock'])->name('lock');
+    Route::view('offline', 'portal.offline')->name('offline');
+    Route::middleware('portal.unlocked')->group(function (): void {
+        Route::get('/', [PortalController::class, 'home'])->name('home');
+        Route::get('accounts/{account}', [PortalController::class, 'statement'])->name('accounts.show');
+        Route::get('receipts/{transaction}', [PortalController::class, 'receipt'])->name('receipts.show');
+        Route::get('pin/change', [PinController::class, 'edit'])->name('pin.change');
+        Route::post('pin/change', [PinController::class, 'update'])->name('pin.update');
+    });
+});
 
 Route::middleware(['auth', RoleMiddleware::using(Role::names([Role::FieldOfficer, Role::Admin]))])
     ->prefix('field')->name('field.')->group(function () {
@@ -99,6 +130,7 @@ Route::middleware(['auth', RoleMiddleware::using(Role::names([Role::FieldOfficer
         Route::post('parties/{party}/collections', [PartyCollectionController::class, 'store'])->name('parties.collections.store');
         Route::get('parties/{party}/photo', [PartyCollectionController::class, 'photo'])->name('parties.photo');
         Route::get('receipts/{transaction}', [ReceiptController::class, 'show'])->name('receipts.show');
+        Route::post('whatsapp/log', WhatsAppLogController::class)->middleware('throttle:60,1,whatsapp')->name('whatsapp.log');
         // Filled by field.js from this phone's offline queue (IndexedDB); the server has nothing to add.
         Route::view('sync', 'field.sync')->name('sync');
     });

@@ -47,6 +47,8 @@ function initTypeToggle(form) {
         if (agreedHint) {
             agreedHint.textContent = savingFields.dataset[type === 'fdr' ? 'hintFdr' : 'hintSaving'];
         }
+        form.querySelectorAll('[data-loan-only]').forEach((box) => toggle(box, isLoan));
+        form.querySelectorAll('[data-saving-only]').forEach((box) => toggle(box, !isLoan));
         principal.required = isLoan;
         if (isLoan) {
             syncExisting();
@@ -67,8 +69,9 @@ function initTypeToggle(form) {
 }
 
 /**
- * Loan collection section: weekdays only for daily plans; installment and number of installments
- * fill each other and the preview comes from the server (same math and dates as opening). Display only.
+ * Collection section of the open form: weekdays only for daily plans. Loans: installment and number
+ * of installments fill each other and the preview comes from the server (same math and dates as
+ * opening). Saving/FDR: term fills the end date and an estimated total is shown. Display only.
  */
 function initLoanCollection(form) {
     const box = form.querySelector('[data-collection-fields]');
@@ -93,7 +96,7 @@ function initLoanCollection(form) {
     const refresh = async () => {
         request?.abort();
         const typed = (name) => field(name).value.trim() !== '';
-        if (box.closest('[data-loan-fields]').hidden || !typed('principal_amount') || !(typed('installment_amount') || typed('installment_count'))) {
+        if (form.querySelector('input[name="account_type"]:checked')?.value !== 'loan' || !typed('principal_amount') || !(typed('installment_amount') || typed('installment_count'))) {
             preview.hidden = true;
             return;
         }
@@ -152,6 +155,7 @@ function initLoanCollection(form) {
     form.addEventListener('change', schedule);
     syncFrequency();
     refresh();
+    initPlanEstimate(form);
 }
 
 function initPlanToggle(form) {

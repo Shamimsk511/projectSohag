@@ -70,12 +70,19 @@ synced --older than 7 days--> deleted (pruned on app open)
 - Every query filters by the signed-in `user_id` (from the live page); other users' items stay untouched on the device.
 - The UI shows queued items as "saved, not synced" next to the snapshot figures; it never recalculates the server's totals. A provisional receipt says "pending" and shows no receipt number until synced.
 
+## Member portal PWA
+- Manifest `/portal.webmanifest` (scope and start_url `/portal`), `public/portal-sw.js` registered with scope `/portal`: same strategy as the field worker (shell assets cache-first, navigations network-first, offline page `/portal/offline`), member HTML is never cached.
+- Sign-in: secret link (`/m/{token}`) + office PIN -> member's own PIN; 1-year device cookie, 15-minute idle lock, 5 wrong PINs lock the link until the office resets the PIN.
+
+## Install banner
+- `x-install-banner` (field layout on `/field` paths, portal layout) + `resources/js/install-banner.js`: Android/Chrome keeps `beforeinstallprompt` and shows an Install button (this replaces Chrome's own mini-infobar); iPhone Safari shows the Share -> Add to Home Screen hint; hidden when running standalone, after `appinstalled`, or once closed (`localStorage` per app).
+
 ## Security
 - Session auth, CSRF token from the page meta tag; 401/419 handled as above, queue always kept.
 - Officer can only submit for own scheduled parties (policy-checked server-side per item, at sync time).
 - Queue stored per user id. Logout with pending/rejected items for that user: warn with the count; "log out anyway" keeps the items (they sync when that user signs in again). The today snapshot is always cleared on logout.
 - A different user signing in on the same phone never sees or sends another user's items.
-- Optional: PIN or device lock on app open for lost-phone protection.
+- Mandatory device PIN (`resources/js/field/pin.js`, IndexedDB store `pins`, PBKDF2): set on the first live `/field` page, asked on app open and after 5 minutes idle/away, also on the offline page (snapshot user's PIN; no PIN -> saved list hidden). 5 wrong tries or "forgot PIN" -> a `locked` record (never deleted) and sign-out when online; a locked record signs out again on any live page and is replaced by a new PIN only on the first `/field` page after a password login (`data-pin-fresh-login`, session `field_pin_fresh_login`). Storage errors fail closed. Queue never deleted. Casual-access guard only; IndexedDB is not encrypted.
 - Optional later: capture GPS at collection time (permission prompt, stored as metadata only).
 
 ## UX rules

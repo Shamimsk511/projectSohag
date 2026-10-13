@@ -23,6 +23,24 @@
         @endcan
     </form>
 
+    @if (session('status'))
+        <div class="alert alert-success">{{ session('status') }}</div>
+    @endif
+
+    @if ($readyToClose !== [])
+        @include('admin.dashboard._ready_to_close')
+    @endif
+
+    @if ($position)
+        <div class="d-flex align-items-center mb-2">
+            <h2 class="h5 mb-0">{{ __('app.reports.position.title') }}</h2>
+            <a class="ms-auto small" href="{{ route('admin.reports.position') }}">{{ __('app.reports.position.open') }}</a>
+        </div>
+        <div class="mb-4">
+            @include('admin.reports._position')
+        </div>
+    @endif
+
     <div id="dashboard-live" data-live-url="{{ route('admin.dashboard.live', ['date' => $dayValue]) }}" data-live-refresh="{{ $isToday ? 1 : 0 }}">
         @include('admin.dashboard._live')
     </div>

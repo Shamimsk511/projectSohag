@@ -4,7 +4,9 @@ namespace App\Http\Requests\Admin;
 
 use App\Enums\ActiveStatus;
 use App\Enums\Gender;
+use App\Enums\Permission;
 use App\Models\Party;
+use App\Models\User;
 use App\Services\PartyPhotoStore;
 use App\Support\Numerals;
 use Illuminate\Contracts\Validation\ValidationRule;
@@ -31,7 +33,22 @@ class StorePartyRequest extends FormRequest
      */
     public function rules(): array
     {
-        return $this->partyRules(null);
+        return [
+            ...$this->partyRules(null),
+            'field_officer_id' => [
+                'nullable', 'integer',
+                Rule::prohibitedIf(fn (): bool => ! ($this->user()?->can(Permission::AssignParties->value) ?? false)),
+                Rule::in(User::activeFieldOfficers()->pluck('id')->all()),
+            ],
+        ];
+    }
+
+    /**
+     * New member only: the field officer to hand them to at once (null = unassigned).
+     */
+    public function fieldOfficer(): ?User
+    {
+        return $this->filled('field_officer_id') ? User::findOrFail($this->integer('field_officer_id')) : null;
     }
 
     /**

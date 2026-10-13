@@ -12,7 +12,9 @@ use App\Models\CollectionSchedule;
 use App\Models\OfficeHead;
 use App\Models\Transaction;
 use App\Models\User;
+use App\Support\Installments;
 use App\Support\Money;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
@@ -21,7 +23,10 @@ use Illuminate\Support\Collection;
  */
 class ReportService
 {
-    public function __construct(private readonly LedgerService $ledger) {}
+    public function __construct(
+        private readonly LedgerService $ledger,
+        private readonly CollectionService $collections,
+    ) {}
 
     /**
      * Admin dashboard for one Dhaka day: expected vs collected on that day's rows, standing totals, per-officer table.
@@ -32,13 +37,24 @@ class ReportService
      *     loan_outstanding: Money, saving_balance: Money, fdr_held: Money, cash_in_hand: Money,
      *     loans: array{count: int, principal: Money, extra: Money},
      *     office: array{income: Money, expense: Money},
-     *     officers: list<array{officer: User, rows: int, paid: int, partial: int, missed: int, expected: Money, collected: Money, rate: int, cash: Money, last_at: Carbon|null}>
+     *     officers: list<array{officer: User, rows: int, paid: int, partial: int, missed: int, expected: Money, collected: Money, rate: int, cash: Money, last_at: Carbon|null, members: list<array{schedule: CollectionSchedule, collected: Money, remaining: Money}>}>,
+     *     unpaid: array{members: int, amount: Money, rows: list<array{schedule: CollectionSchedule, collected: Money, remaining: Money}>, older_members: int, older_from: Carbon, older_to: Carbon}
      * }
      */
     public function dashboard(Carbon $day): array
     {
         [$rows, $collected] = $this->scheduleRows($day, $day);
         $totals = $this->scheduleTotals($rows, $collected);
+
+        $rows->load(['party:id,party_code,name,phone', 'account:id,account_number', 'fieldOfficer:id,name']);
+        $members = $rows
+            ->map(fn (CollectionSchedule $row): array => $this->scheduleLine($row, $collected[$row->id]))
+            ->sortBy([
+                fn (array $a, array $b): int => $b['remaining']->isPositive() <=> $a['remaining']->isPositive(),
+                fn (array $a, array $b): int => strcmp($a['schedule']->party->name, $b['schedule']->party->name),
+            ])
+            ->values();
+        $unpaid = $members->filter(fn (array $line): bool => $line['remaining']->isPositive())->values();
 
         $lines = $this->officerLines($rows, $collected);
         $officerIds = array_map(fn (array $line): int => $line['officer']->id, $lines);
@@ -47,9 +63,11 @@ class ReportService
         $officers = array_map(fn (array $line): array => $line + [
             'cash' => $cash[$line['officer']->id],
             'last_at' => $lastAt[$line['officer']->id] ?? null,
+            'members' => $members->filter(fn (array $member): bool => $member['schedule']->field_officer_id === $line['officer']->id)->values()->all(),
         ], $lines);
 
-        $holders = Transaction::query()->whereNotNull('field_officer_id')->distinct()->pluck('field_officer_id')->all();
+        $olderFrom = $day->copy()->subDays(30);
+        $olderTo = $day->copy()->subDay();
 
         return [
             'expected' => $totals['expected'],
@@ -59,13 +77,39 @@ class ReportService
             'loan_outstanding' => $this->ledger->totalLoanOutstanding(),
             'saving_balance' => $this->ledger->totalSavingBalance(),
             'fdr_held' => $this->ledger->totalFdrHeld(),
-            'cash_in_hand' => Money::fromPoisha(array_sum(array_map(
-                fn (Money $money): int => $money->poisha,
-                $this->ledger->cashInHand(array_map('intval', $holders)),
-            ))),
+            'cash_in_hand' => $this->ledger->totalCashWithOfficers(),
             'loans' => $this->ledger->loansIssued($day, $day),
             'office' => $this->ledger->officeTotals($day, $day),
             'officers' => $officers,
+            'unpaid' => [
+                'members' => $unpaid->pluck('schedule.party_id')->unique()->count(),
+                'amount' => Money::fromPoisha((int) $unpaid->sum(fn (array $line): int => $line['remaining']->poisha)),
+                'rows' => $unpaid->all(),
+                'older_members' => CollectionSchedule::query()
+                    ->where('due_date', '>=', $olderFrom->toDateString())
+                    ->where('due_date', '<', $day->toDateString())
+                    ->whereIn('status', [ScheduleStatus::Missed, ScheduleStatus::PartiallyPaid])
+                    ->distinct()
+                    ->count('party_id'),
+                'older_from' => $olderFrom,
+                'older_to' => $olderTo,
+            ],
+        ];
+    }
+
+    /**
+     * One schedule row with what was collected on it and what is still due (never below zero).
+     *
+     * @return array{schedule: CollectionSchedule, collected: Money, remaining: Money}
+     */
+    private function scheduleLine(CollectionSchedule $schedule, Money $collected): array
+    {
+        return [
+            'schedule' => $schedule,
+            'collected' => $collected,
+            'remaining' => $schedule->expected_amount->greaterThan($collected)
+                ? $schedule->expected_amount->minus($collected)
+                : Money::zero(),
         ];
     }
 
@@ -101,7 +145,7 @@ class ReportService
     /**
      * Non-cancelled schedule rows due in the period with what the ledger says was collected on each.
      *
-     * @return array{0: Collection<int, CollectionSchedule>, 1: array<int, Money>}
+     * @return array{0: EloquentCollection<int, CollectionSchedule>, 1: array<int, Money>}
      */
     private function scheduleRows(Carbon $from, Carbon $to): array
     {
@@ -109,7 +153,7 @@ class ReportService
             ->where('due_date', '>=', $from->toDateString())
             ->where('due_date', '<', $to->copy()->addDay()->toDateString())
             ->where('status', '!=', ScheduleStatus::Cancelled)
-            ->get(['id', 'field_officer_id', 'expected_amount', 'status']);
+            ->get(['id', 'account_id', 'party_id', 'field_officer_id', 'due_date', 'expected_amount', 'status']);
 
         return [$rows, $this->ledger->collectedForSchedules($rows->modelKeys())];
     }
@@ -261,6 +305,36 @@ class ReportService
     }
 
     /**
+     * Active loans with nothing left to receive, oldest last payment first. Listed for a one-click close; nothing is
+     * closed automatically.
+     *
+     * @return list<array{account: Account, contract: Money, received: Money, last_paid: Carbon|null}>
+     */
+    public function readyToClose(): array
+    {
+        $accounts = Account::query()
+            ->where('account_type', AccountType::Loan)
+            ->whereNull('closed_at')
+            ->with('party:id,party_code,name')
+            ->get();
+        $received = $this->ledger->loanReceivedFor($accounts->modelKeys());
+        $paidOff = $accounts->filter(fn (Account $account): bool => $account->contract_amount?->isPositive() === true
+            && ! $account->contract_amount->minus($received[$account->id])->isPositive())->values();
+        $lastPaid = $this->ledger->lastCollectionDateFor($paidOff->modelKeys());
+
+        return $paidOff
+            ->map(fn (Account $account): array => [
+                'account' => $account,
+                'contract' => $account->contract_amount ?? Money::zero(),
+                'received' => $received[$account->id],
+                'last_paid' => $lastPaid[$account->id] ?? null,
+            ])
+            ->sortBy(fn (array $line): string => $line['last_paid']?->toDateString() ?? '')
+            ->values()
+            ->all();
+    }
+
+    /**
      * Schedule rows due in the period that ended missed or partly paid, with what is still uncollected.
      *
      * @return array{
@@ -281,13 +355,7 @@ class ReportService
             ->get();
         $collected = $this->ledger->collectedForSchedules($schedules->modelKeys());
 
-        $rows = $schedules->map(fn (CollectionSchedule $schedule): array => [
-            'schedule' => $schedule,
-            'collected' => $collected[$schedule->id],
-            'remaining' => $schedule->expected_amount->greaterThan($collected[$schedule->id])
-                ? $schedule->expected_amount->minus($collected[$schedule->id])
-                : Money::zero(),
-        ])->all();
+        $rows = $schedules->map(fn (CollectionSchedule $schedule): array => $this->scheduleLine($schedule, $collected[$schedule->id]))->all();
 
         $sum = fn (callable $pick): Money => Money::fromPoisha(array_sum(array_map($pick, $rows)));
 
@@ -513,8 +581,8 @@ class ReportService
 
         return [
             'totals' => $totals,
-            'received' => Money::fromPoisha(array_sum(array_map(fn (TransactionType $type): int => $get($type)->poisha, TransactionType::collectionTypes()))),
-            'paid_out' => $get(TransactionType::LoanDisbursement)->plus($get(TransactionType::SavingWithdrawal))->plus($get(TransactionType::InvestmentReturn)),
+            'received' => $this->received($totals),
+            'paid_out' => $this->paidOut($totals),
             'office_net' => $get(TransactionType::OfficeIncome)->minus($get(TransactionType::OfficeExpense)),
             'money_in' => $moneyIn,
             'money_out' => $moneyOut,
@@ -528,5 +596,145 @@ class ReportService
             'counts' => $schedule['counts'],
             'daily' => array_replace($daily, $this->ledger->receivedPerDay($from, $to)),
         ];
+    }
+
+    /**
+     * Where the money stands now: cash (office and with officers), what members owe on loans, what
+     * the NGO holds for members (savings, FDR payback), and this month's movement up to `$today`.
+     *
+     * @return array{
+     *     cash: array{office: Money, officers: Money, total: Money},
+     *     owed_to_us: array{loans: Money, overdue: Money, count: int},
+     *     we_owe: array{savings: Money, fdr: Money, total: Money},
+     *     month: array{from: Carbon, received: Money, paid_out: Money, office_income: Money, office_expense: Money}
+     * }
+     */
+    public function position(Carbon $today): array
+    {
+        $office = $this->ledger->officeCashBalance($today);
+        $officers = $this->ledger->totalCashWithOfficers();
+        $loans = $this->outstanding($today);
+        $savings = $this->ledger->totalSavingBalance();
+        $fdr = $this->ledger->totalFdrRemaining();
+        $from = $today->copy()->startOfMonth();
+        $totals = $this->ledger->totalsByType($from, $today);
+
+        return [
+            'cash' => ['office' => $office, 'officers' => $officers, 'total' => $office->plus($officers)],
+            'owed_to_us' => ['loans' => $loans['outstanding'], 'overdue' => $loans['overdue'], 'count' => count($loans['lines'])],
+            'we_owe' => ['savings' => $savings, 'fdr' => $fdr, 'total' => $savings->plus($fdr)],
+            'month' => [
+                'from' => $from,
+                'received' => $this->received($totals),
+                'paid_out' => $this->paidOut($totals),
+                'office_income' => $totals[TransactionType::OfficeIncome->value] ?? Money::zero(),
+                'office_expense' => $totals[TransactionType::OfficeExpense->value] ?? Money::zero(),
+            ],
+        ];
+    }
+
+    /**
+     * Money received from members (collections, saving and FDR deposits) in a totals-by-type map.
+     *
+     * @param  array<string, Money>  $totals
+     */
+    private function received(array $totals): Money
+    {
+        return Money::fromPoisha(array_sum(array_map(
+            fn (TransactionType $type): int => ($totals[$type->value] ?? Money::zero())->poisha,
+            TransactionType::collectionTypes(),
+        )));
+    }
+
+    /**
+     * Money paid out to members (loans given, withdrawals, FDR paybacks) in a totals-by-type map.
+     *
+     * @param  array<string, Money>  $totals
+     */
+    private function paidOut(array $totals): Money
+    {
+        return Money::fromPoisha(array_sum(array_map(
+            fn (TransactionType $type): int => ($totals[$type->value] ?? Money::zero())->poisha,
+            [TransactionType::LoanDisbursement, TransactionType::SavingWithdrawal, TransactionType::InvestmentReturn],
+        )));
+    }
+
+    /**
+     * Progress of each of a member's accounts, figures batched over all of them. Loan: given, agreed
+     * extra, received, remaining, installments paid of about how many, estimated end. Saving: saved,
+     * balance, agreed. FDR: held, payback remaining. Every account: installment, next due date (open
+     * rows from today), last payment, missed rows. `remaining` equals LedgerService::remainingBalance().
+     *
+     * @param  EloquentCollection<int, Account>  $accounts
+     * @return array<int, array{
+     *     remaining: Money, contract: Money|null, installment: Money|null, next_due: Carbon|null,
+     *     last_paid: Carbon|null, paid: int, missed: int, given: Money|null, extra: Money|null,
+     *     received: Money|null, total: int|null, ends_on: Carbon|null, saved: Money|null, held: Money|null
+     * }>
+     */
+    public function memberAccounts(EloquentCollection $accounts, Carbon $today): array
+    {
+        $accounts->loadMissing('collectionPlan');
+        $ids = $accounts->modelKeys();
+        $sums = $this->ledger->sumsByTypeFor($ids);
+        $lastPaid = $this->ledger->lastCollectionDateFor($ids);
+        $schedules = CollectionSchedule::query()
+            ->whereIn('account_id', $ids)
+            ->where('status', '!=', ScheduleStatus::Cancelled)
+            ->get(['id', 'account_id', 'due_date', 'status'])
+            ->groupBy('account_id');
+
+        $result = [];
+        foreach ($accounts as $account) {
+            $get = fn (array $types): Money => Money::fromPoisha(array_sum(array_map(
+                fn (TransactionType $type): int => ($sums[$account->id][$type->value] ?? Money::zero())->poisha,
+                $types,
+            )));
+            $rows = $schedules->get($account->id, collect());
+            $plan = $account->collectionPlan;
+
+            $line = [
+                'contract' => $account->contract_amount,
+                'installment' => $plan?->installment_amount,
+                'next_due' => $rows
+                    ->filter(fn (CollectionSchedule $row): bool => in_array($row->status, [ScheduleStatus::Pending, ScheduleStatus::PartiallyPaid], true)
+                        && $row->due_date->toDateString() >= $today->toDateString())
+                    ->min('due_date'),
+                'last_paid' => $lastPaid[$account->id] ?? null,
+                'paid' => $rows->where('status', ScheduleStatus::Paid)->count(),
+                'missed' => $rows->where('status', ScheduleStatus::Missed)->count(),
+                'given' => null, 'extra' => null, 'received' => null, 'total' => null, 'ends_on' => null, 'saved' => null, 'held' => null,
+            ];
+
+            if ($account->isLoan()) {
+                $given = $get(LedgerService::LOAN_DISBURSED);
+                $received = $get(LedgerService::LOAN_RECEIVED);
+                $remaining = ($account->contract_amount ?? Money::zero())->minus($received);
+                $left = $plan !== null && $remaining->isPositive() ? Installments::ofAmount($remaining, $plan->installment_amount)->count : 0;
+                $dates = $left > 0 ? $this->collections->projectDates($plan, $today, $left) : [];
+                $line = [
+                    'remaining' => $remaining,
+                    'given' => $given,
+                    'extra' => $account->contract_amount !== null && $given->isPositive() ? $account->contract_amount->minus($given) : null,
+                    'received' => $received,
+                    'total' => $plan !== null ? $line['paid'] + $left : null,
+                    'ends_on' => $dates === [] ? null : end($dates),
+                ] + $line;
+            } elseif ($account->isFdr()) {
+                $deposited = $get([TransactionType::InvestmentDeposit]);
+                $returned = $get([TransactionType::InvestmentReturn]);
+                $line = [
+                    'remaining' => ($account->contract_amount ?? $deposited)->minus($returned),
+                    'held' => $deposited->minus($returned),
+                ] + $line;
+            } else {
+                $saved = $get(TransactionType::savingInTypes());
+                $line = ['remaining' => $saved->minus($get([TransactionType::SavingWithdrawal])), 'saved' => $saved] + $line;
+            }
+
+            $result[$account->id] = $line;
+        }
+
+        return $result;
     }
 }

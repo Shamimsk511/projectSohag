@@ -56,6 +56,27 @@ class FieldCollectionScreensTest extends TestCase
             ->assertSeeInOrder(['৭০০.০০', '২০০.০০', '৫০০.০০']);
     }
 
+    public function test_day_list_puts_unpaid_members_first_folds_paid_ones_and_sums_up_the_day(): void
+    {
+        $paid = $this->schedule(Account::factory()->create(), '200');
+        $pending = $this->schedule(Account::factory()->create(), '500');
+        $partial = $this->schedule(Account::factory()->loan()->create(), '300');
+        $paid->party->update(['name' => 'Anna Paid']);
+        $pending->party->update(['name' => 'Zed Pending']);
+        $partial->party->update(['name' => 'Mia Partial']);
+        $this->collect($paid, '200');
+        $this->collect($partial, '100');
+
+        $this->actingAs($this->officer)->get(route('field.home'))
+            ->assertOk()
+            ->assertSee(__('app.field.day_line', [
+                'paid' => '১', 'total' => '৩',
+                'collected' => Money::fromTaka('300')->format(),
+                'cash' => Money::fromTaka('300')->format(),
+            ]))
+            ->assertSeeInOrder(['Mia Partial', 'Zed Pending', __('app.field.paid_section', ['count' => '১']), 'Anna Paid']);
+    }
+
     public function test_day_list_embeds_an_offline_snapshot_of_the_officers_own_rows(): void
     {
         $mine = $this->schedule(Account::factory()->loan()->create(), '500');

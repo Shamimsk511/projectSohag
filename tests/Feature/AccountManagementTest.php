@@ -339,8 +339,8 @@ class AccountManagementTest extends TestCase
             ->assertSee(route('admin.accounts.statement', $saving), false)
             ->assertSee(route('admin.accounts.statement', $loan), false)
             ->assertSee(route('admin.parties.statement', $this->party), false)
-            ->assertSee(__('app.parties.total_saving'))
-            ->assertSee(__('app.parties.total_loan'));
+            ->assertSee(__('app.parties.progress.we_hold'))
+            ->assertSee(__('app.parties.progress.owes_us'));
     }
 
     public function test_party_page_lists_accounts_and_open_link(): void

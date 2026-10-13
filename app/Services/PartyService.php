@@ -12,22 +12,28 @@ class PartyService
     public function __construct(
         private readonly PartyPhotoStore $photos,
         private readonly AuditLogger $audit,
+        private readonly AssignmentService $assignments,
     ) {}
 
     /**
-     * Create a party, give it its P-00001 code and attach the uploaded photo if any.
+     * Create a party, give it its P-00001 code, attach the uploaded photo if any and hand it to a
+     * field officer when one is given (same DB transaction: all or nothing).
      *
      * @param  array<string, mixed>  $attributes
      */
-    public function create(array $attributes, ?string $photoToken, User $actor): Party
+    public function create(array $attributes, ?string $photoToken, User $actor, ?User $officer = null): Party
     {
         $photoPath = $photoToken === null ? null : $this->photos->claim($photoToken);
 
         try {
-            return DB::transaction(function () use ($attributes, $photoPath, $actor): Party {
+            return DB::transaction(function () use ($attributes, $photoPath, $actor, $officer): Party {
                 $party = Party::create([...$attributes, 'photo_path' => $photoPath]);
                 $party->forceFill(['party_code' => Party::codeFor($party->id)])->save();
                 $this->audit->created('party.created', $party, $actor);
+
+                if ($officer !== null) {
+                    $this->assignments->assign($party, $officer, $actor);
+                }
 
                 return $party;
             });

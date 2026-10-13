@@ -7,15 +7,25 @@ use App\Http\Requests\Admin\DailyCollectionReportRequest;
 use App\Http\Requests\Admin\MissedPartialReportRequest;
 use App\Http\Requests\Admin\MonthlyReportRequest;
 use App\Http\Requests\Admin\OutstandingReportRequest;
+use App\Http\Requests\Admin\ReportAccessRequest;
 use App\Http\Requests\Admin\ReportPeriodRequest;
 use App\Models\Area;
 use App\Models\User;
 use App\Services\ReportService;
+use App\Services\WhatsAppService;
 use Illuminate\Support\Carbon;
 use Illuminate\View\View;
 
 class ReportController extends Controller
 {
+    /**
+     * Reports hub: every report as a tile, grouped by what it answers.
+     */
+    public function index(ReportAccessRequest $request): View
+    {
+        return view('admin.reports.index');
+    }
+
     public function dailyCollection(DailyCollectionReportRequest $request, ReportService $reports): View
     {
         return view('admin.reports.daily-collection', [
@@ -50,15 +60,21 @@ class ReportController extends Controller
         ]);
     }
 
-    public function missedPartial(MissedPartialReportRequest $request, ReportService $reports): View
+    public function missedPartial(MissedPartialReportRequest $request, ReportService $reports, WhatsAppService $whatsapp): View
     {
+        $report = $reports->missedAndPartial($request->periodFrom(), $request->periodTo(), $request->status(), $request->officer());
+
         return view('admin.reports.missed-partial', [
             'from' => $request->periodFrom(),
             'to' => $request->periodTo(),
             'status' => $request->status(),
             'officer' => $request->officer(),
             'officers' => User::activeFieldOfficers()->orderBy('name')->get(['id', 'name']),
-            'report' => $reports->missedAndPartial($request->periodFrom(), $request->periodTo(), $request->status(), $request->officer()),
+            'report' => $report,
+            'reminded' => $whatsapp->reminderLabels(
+                array_map(fn (array $line): int => $line['schedule']->id, $report['rows']),
+                Carbon::parse(today(config('app.display_timezone'))->toDateString()),
+            ),
         ]);
     }
 
@@ -68,6 +84,13 @@ class ReportController extends Controller
             'from' => $request->periodFrom(),
             'to' => $request->periodTo(),
             'report' => $reports->cashReconciliation($request->periodFrom(), $request->periodTo()),
+        ]);
+    }
+
+    public function position(ReportAccessRequest $request, ReportService $reports): View
+    {
+        return view('admin.reports.position', [
+            'position' => $reports->position(Carbon::parse(today(config('app.display_timezone'))->toDateString())),
         ]);
     }
 

@@ -25,10 +25,10 @@ use Illuminate\Support\Collection;
 class LedgerService
 {
     /** Loan "received" rows: installments plus what was received before go-live. */
-    private const LOAN_RECEIVED = [TransactionType::LoanCollection, TransactionType::LoanOpeningReceived];
+    public const LOAN_RECEIVED = [TransactionType::LoanCollection, TransactionType::LoanOpeningReceived];
 
     /** Loan "handed over" rows: disbursements plus the principal of a loan carried in at go-live. */
-    private const LOAN_DISBURSED = [TransactionType::LoanDisbursement, TransactionType::LoanOpeningDisbursement];
+    public const LOAN_DISBURSED = [TransactionType::LoanDisbursement, TransactionType::LoanOpeningDisbursement];
 
     public function savingBalance(Account $account): Money
     {
@@ -273,6 +273,56 @@ class LedgerService
     }
 
     /**
+     * Effective totals per type for each account in one query (reversed rows left out). Every id gets
+     * an entry; types without rows are absent.
+     *
+     * @param  list<int>  $accountIds
+     * @return array<int, array<string, Money>>
+     */
+    public function sumsByTypeFor(array $accountIds): array
+    {
+        $result = array_fill_keys($accountIds, []);
+        foreach (array_chunk($accountIds, 1000) as $chunk) {
+            $this->effectiveRows()
+                ->whereIn('account_id', $chunk)
+                ->groupBy('account_id', 'type')
+                ->selectRaw('account_id, type, sum(amount) as total')
+                ->toBase()
+                ->get()
+                ->each(function (object $row) use (&$result): void {
+                    $result[(int) $row->account_id][(string) $row->type] = Money::fromPoisha((int) $row->total);
+                });
+        }
+
+        return $result;
+    }
+
+    /**
+     * Date of the latest effective payment from the member (collection or deposit) on each account.
+     *
+     * @param  list<int>  $accountIds
+     * @return array<int, Carbon>
+     */
+    public function lastCollectionDateFor(array $accountIds): array
+    {
+        $result = [];
+        foreach (array_chunk($accountIds, 1000) as $chunk) {
+            $this->effectiveRows()
+                ->whereIn('account_id', $chunk)
+                ->whereIn('type', TransactionType::collectionTypes())
+                ->groupBy('account_id')
+                ->selectRaw('account_id, max(transaction_date) as last_date')
+                ->toBase()
+                ->get()
+                ->each(function (object $row) use (&$result): void {
+                    $result[(int) $row->account_id] = Carbon::parse(substr((string) $row->last_date, 0, 10));
+                });
+        }
+
+        return $result;
+    }
+
+    /**
      * @param  list<TransactionType>  $types
      * @param  list<int>  $accountIds
      * @return array<int, Money>
@@ -451,6 +501,43 @@ class LedgerService
         $out = (int) $this->effectiveRows()->where('type', TransactionType::InvestmentReturn)->sum('amount');
 
         return Money::fromPoisha($in - $out);
+    }
+
+    /**
+     * Payback still owed over every active FDR account: agreed payback (deposits when none is set)
+     * minus what was paid back, the same figure as fdrRemaining() per account.
+     */
+    public function totalFdrRemaining(): Money
+    {
+        $accounts = Account::query()->where('account_type', AccountType::Fdr)->whereNull('closed_at');
+        $sums = $this->effectiveRows()
+            ->whereIn('type', [TransactionType::InvestmentDeposit, TransactionType::InvestmentReturn])
+            ->whereIn('account_id', (clone $accounts)->select('id'))
+            ->groupBy('account_id', 'type')
+            ->selectRaw('account_id, type, sum(amount) as total')
+            ->toBase()
+            ->get();
+        $sum = fn (int $accountId, TransactionType $type): int => (int) ($sums->first(
+            fn (object $row): bool => (int) $row->account_id === $accountId && $row->type === $type->value,
+        )->total ?? 0);
+
+        return Money::fromPoisha((int) $accounts->get(['id', 'contract_amount'])->sum(
+            fn (Account $account): int => ($account->contract_amount->poisha ?? $sum($account->id, TransactionType::InvestmentDeposit))
+                - $sum($account->id, TransactionType::InvestmentReturn),
+        ));
+    }
+
+    /**
+     * Cash every field officer holds right now (collections minus handovers), summed.
+     */
+    public function totalCashWithOfficers(): Money
+    {
+        $holders = Transaction::query()->whereNotNull('field_officer_id')->distinct()->pluck('field_officer_id')->all();
+
+        return Money::fromPoisha(array_sum(array_map(
+            fn (Money $money): int => $money->poisha,
+            $this->cashInHand(array_map('intval', $holders)),
+        )));
     }
 
     /**

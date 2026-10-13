@@ -39,6 +39,9 @@
                 <span class="field-amount-label align-self-center">{{ __('app.cash.in_hand') }}</span>
                 <span class="field-amount">{{ $cashInHand->format() }}</span>
             </div>
+            @if ($schedules->isNotEmpty())
+                <div class="border-top mt-2 pt-2 fw-semibold text-center">{{ $dayLine }}</div>
+            @endif
         </div>
     </div>
 
@@ -46,7 +49,7 @@
         <p class="text-body-secondary">{{ __('app.field.empty') }}</p>
     @endif
 
-    @if ($clients->isNotEmpty())
+    @if ($unpaidClients->isNotEmpty() || $paidClients->isNotEmpty())
         <div class="mb-3">
             <label for="party-search" class="visually-hidden">{{ __('app.field.search') }}</label>
             <input type="search" id="party-search" class="form-control form-control-lg js-party-search" autocomplete="off"
@@ -55,9 +58,21 @@
         <p class="text-body-secondary d-none" data-party-no-match>{{ __('app.field.no_match') }}</p>
     @endif
 
-    @foreach ($clients as $rows)
+    @foreach ($unpaidClients as $rows)
         @include('field._client_card')
     @endforeach
+
+    @if ($paidClients->isNotEmpty())
+        <details class="mt-3" data-paid-clients>
+            <summary class="btn btn-outline-success w-100 py-3 mb-2">
+                <i class="bi bi-check2-circle" aria-hidden="true"></i>
+                {{ __('app.field.paid_section', ['count' => \App\Support\Numerals::localize((string) $paidClients->count())]) }}
+            </summary>
+            @foreach ($paidClients as $rows)
+                @include('field._client_card')
+            @endforeach
+        </details>
+    @endif
 
     {{-- Saved to IndexedDB by field.js; the offline page shows it when there is no connection. --}}
     <script type="application/json" id="field-today">@json($snapshot)</script>

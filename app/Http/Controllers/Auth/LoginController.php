@@ -61,6 +61,8 @@ class LoginController extends Controller
             $this->refuse($request, __('app.no_role'));
         }
 
+        $request->session()->put('field_pin_fresh_login', true);
+
         return redirect()->intended(route($route));
     }
 
