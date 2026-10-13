@@ -8,7 +8,7 @@ import 'bootstrap-icons/font/bootstrap-icons.min.css';
 import '../css/field.css';
 import { clearToday, loadToday, queuedFor, removeQueued, saveToday } from './field/db.js';
 import { initOfflinePage } from './field/offline-page.js';
-import { localizeDigits, parseTaka, queueCollection, renderQueue, t, toAsciiDigits, uuid } from './field/queue.js';
+import { formatPoisha, localizeDigits, parseTaka, queueCollection, renderQueue, t, toAsciiDigits, uuid } from './field/queue.js';
 import { requirePin, showLockError } from './field/pin.js';
 import { initSyncPage } from './field/sync-page.js';
 import { pruneSynced, syncQueue } from './field/sync.js';
@@ -29,6 +29,38 @@ document.addEventListener('submit', (event) => {
     if (form instanceof HTMLFormElement && form.matches('.js-confirm') && !window.confirm(form.dataset.confirm)) {
         event.preventDefault();
     }
+});
+
+// Two-step collect (.js-two-step): "Collect" checks the amount and shows it, then "Save collection" posts.
+// The page renders the save button visible so the form still works without JS; this switches to the step view.
+document.querySelectorAll('form.js-two-step').forEach((form) => {
+    const start = form.querySelector('[data-step-start]');
+    const confirmBox = form.querySelector('[data-step-confirm]');
+    const summary = form.querySelector('[data-step-summary]');
+    const back = form.querySelector('[data-step-back]');
+    const amountInput = form.elements.amount;
+    const step = (confirming) => {
+        start.classList.toggle('d-none', confirming);
+        confirmBox.classList.toggle('d-none', !confirming);
+        summary.classList.toggle('d-none', !confirming);
+        back.classList.toggle('d-none', !confirming);
+    };
+    step(false);
+    start.addEventListener('click', () => {
+        const amount = parseTaka(amountInput.value);
+        amountInput.setCustomValidity(amount ? '' : t('invalid_amount'));
+        if (!form.reportValidity()) {
+            return;
+        }
+        form.querySelector('[data-step-amount]').textContent = formatPoisha(amount.poisha);
+        step(true);
+        confirmBox.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    });
+    back.addEventListener('click', () => step(false));
+    form.addEventListener('input', () => {
+        amountInput.setCustomValidity('');
+        step(false); // any change needs a fresh look at the amount
+    });
 });
 
 // "Full due" quick fill: copy the remaining amount into the amount input.

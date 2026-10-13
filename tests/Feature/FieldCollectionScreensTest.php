@@ -66,9 +66,12 @@ class FieldCollectionScreensTest extends TestCase
         $partial->party->update(['name' => 'Mia Partial']);
         $this->collect($paid, '200');
         $this->collect($partial, '100');
+        // Second open account of the same member: counted once in "members left today".
+        $this->schedule(Account::factory()->for($pending->party)->create(), '50');
 
         $this->actingAs($this->officer)->get(route('field.home'))
             ->assertOk()
+            ->assertSee(__('app.field.open_today', ['count' => '২']))
             ->assertSee(__('app.field.day_line', [
                 'paid' => '১', 'total' => '৩',
                 'collected' => Money::fromTaka('300')->format(),
@@ -111,16 +114,23 @@ class FieldCollectionScreensTest extends TestCase
         $this->assertSame('2026-10-10', $earlier['due_date']);
     }
 
-    public function test_collect_page_shows_due_and_a_fresh_client_uuid(): void
+    public function test_collect_page_prefills_the_due_and_summarises_the_members_accounts(): void
     {
         $schedule = $this->schedule(Account::factory()->loan('10000')->create(), '500');
         $this->collect($schedule, '200');
+        $saving = Account::factory()->for($schedule->party)->create();
+        $this->schedule($saving, '100');
+        $this->collect(CollectionSchedule::where('account_id', $saving->id)->firstOrFail(), '100');
+        $closed = Account::factory()->for($schedule->party)->create(['closed_at' => now()]);
 
         $this->actingAs($this->officer)->get(route('field.collections.create', $schedule))
             ->assertOk()
             ->assertSee($schedule->party->name)
             ->assertSee('৯,৮০০.০০')
-            ->assertSee('data-full-due="300.00"', false)
+            ->assertSee('name="amount" value="300.00"', false)
+            ->assertSee('data-step-start', false)
+            ->assertSeeInOrder([__('app.field.member_summary'), $schedule->account->account_number, $saving->account_number, __('app.accounts.balance'), '৳১০০.০০'])
+            ->assertDontSee($closed->account_number)
             ->assertSee('name="client_uuid"', false)
             ->assertSee('js-queue-collect', false)
             ->assertSee('data-schedule-id="'.$schedule->id.'"', false);

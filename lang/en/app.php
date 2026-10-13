@@ -518,6 +518,13 @@ return [
         'weekdays_required' => 'Choose at least one collection day.',
     ],
     'field' => [
+        'member_summary' => 'Accounts',
+        'confirm_amount' => 'Amount to collect',
+        'cannot_undo' => 'It cannot be changed after saving.',
+        'change' => 'Change',
+        'title' => 'Today\'s collections',
+        'open_today' => ':count member(s) left to collect today',
+        'member_code' => 'Member no.',
         'paid_section' => 'Paid today (:count)',
         'day_line' => ':paid of :total members paid · :collected collected · :cash to hand over',
         'expected' => 'Expected',

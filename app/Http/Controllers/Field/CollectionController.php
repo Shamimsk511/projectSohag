@@ -7,6 +7,7 @@ use App\Http\Requests\Field\StoreCollectionRequest;
 use App\Models\CollectionSchedule;
 use App\Models\DailyClosing;
 use App\Services\LedgerService;
+use App\Services\ReportService;
 use App\Services\TransactionService;
 use App\Support\Money;
 use App\Support\Numerals;
@@ -113,6 +114,7 @@ class CollectionController extends Controller
             'unpaidClients' => $unpaidClients->values(),
             'paidClients' => $paidClients->values(),
             'dayLine' => $dayLine,
+            'openToday' => $schedules->filter(fn (CollectionSchedule $schedule): bool => $schedule->status->isCollectable() && $remaining[$schedule->id]->isPositive())->unique('party_id')->count(),
             'today' => $today->toDateString(),
             'collected' => $collected,
             'remaining' => $remaining,
@@ -125,7 +127,7 @@ class CollectionController extends Controller
         ]);
     }
 
-    public function create(CollectionSchedule $schedule): View|RedirectResponse
+    public function create(CollectionSchedule $schedule, ReportService $reports): View|RedirectResponse
     {
         $this->authorize('collect', $schedule);
 
@@ -135,6 +137,7 @@ class CollectionController extends Controller
 
         $schedule->load(['party', 'account']);
         $collected = $this->ledger->collectedForSchedules([$schedule->id])[$schedule->id];
+        $accounts = $schedule->party->accounts()->active()->orderBy('id')->get();
 
         return view('field.collections.create', [
             'schedule' => $schedule,
@@ -142,6 +145,8 @@ class CollectionController extends Controller
             'remaining' => $this->remaining($schedule, $collected),
             'accountRemaining' => $this->ledger->remainingBalance($schedule->account),
             'clientUuid' => (string) Str::uuid(),
+            'accounts' => $accounts,
+            'progress' => $reports->memberAccounts($accounts, Carbon::parse(today(config('app.display_timezone'))->toDateString())),
         ]);
     }
 

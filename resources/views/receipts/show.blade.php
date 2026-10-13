@@ -6,7 +6,7 @@
     @php
         $date = fn (\Illuminate\Support\Carbon $value): string => \App\Support\Numerals::localize($value->format('d/m/Y'));
         $shareText = implode("\n", [
-            config('app.name').' - '.__('app.receipts.title'),
+            __('app.site.org_name').' - '.__('app.receipts.title'),
             __('app.receipts.receipt_no').': '.$transaction->receipt_no,
             __('app.receipts.date').': '.$date($transaction->transaction_date),
             __('app.receipts.member').': '.$transaction->party?->name,

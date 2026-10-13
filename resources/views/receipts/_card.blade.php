@@ -5,7 +5,7 @@
 <div class="card">
     <div class="card-body">
         <div class="text-center mb-3">
-            <div class="h5 mb-0">{{ config('app.name') }}</div>
+            <div class="h5 mb-0">{{ __('app.site.org_name') }}</div>
             <div class="text-body-secondary">{{ __('app.receipts.title') }}</div>
         </div>
         <dl class="row mb-0">

@@ -515,6 +515,13 @@ return [
         'weekdays_required' => 'অন্তত একটি আদায়ের দিন বেছে নিন।',
     ],
     'field' => [
+        'member_summary' => 'হিসাব দেখুন',
+        'confirm_amount' => 'এই টাকা আদায় হবে',
+        'cannot_undo' => 'সংরক্ষণের পর আর বদলানো যাবে না।',
+        'change' => 'বদলান',
+        'title' => 'আজকের আদায়',
+        'open_today' => 'আজ :count জন সদস্যের আদায় বাকি',
+        'member_code' => 'গ্রাহক নং',
         'paid_section' => 'আজ পরিশোধ করেছেন (:count)',
         'day_line' => ':total জনের মধ্যে :paid জন দিয়েছেন · আদায় :collected · জমা দিতে হবে :cash',
         'expected' => 'প্রত্যাশিত',

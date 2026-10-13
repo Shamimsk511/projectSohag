@@ -3,21 +3,7 @@
 @section('title', __('app.field.collect_all_title'))
 
 @section('content')
-    <a href="{{ route('field.home') }}" class="btn btn-link px-0 mb-2">
-        <i class="bi bi-arrow-left" aria-hidden="true"></i> {{ __('app.field.back') }}
-    </a>
-
-    <h1 class="h4">{{ $party->name }}</h1>
-    <p class="text-body-secondary mb-3">
-        {{ $party->party_code }}
-        @if ($party->client_number)
-            · {{ __('app.field.client_number') }} {{ $party->client_number }}
-        @endif
-        <br>
-        <a href="tel:{{ $party->phone }}" class="btn btn-outline-secondary btn-lg mt-2">
-            <i class="bi bi-telephone" aria-hidden="true"></i> {{ \App\Support\Numerals::localize($party->phone) }}
-        </a>
-    </p>
+    @include('field._member_header')
 
     <p class="small text-body-secondary">{{ __('app.field.collect_all_hint') }}</p>
 

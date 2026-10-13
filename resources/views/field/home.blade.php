@@ -16,31 +16,36 @@
 
     @include('field._queue_status', ['syncButton' => true, 'detailsLink' => true])
 
-    <h1 class="h4 mb-3">{{ __('app.today') }}</h1>
+    <h1 class="field-title mb-3">{{ __('app.field.title') }}</h1>
 
-    <div class="card mb-3">
+    <div class="card field-card mb-3">
         <div class="card-body">
-            <div class="text-body-secondary small mb-2">{{ __('app.field.visits', ['count' => \App\Support\Numerals::localize((string) $schedules->count())]) }}</div>
-            <div class="row text-center g-2">
-                <div class="col-4">
+            <div class="field-stats">
+                <div>
                     <div class="field-amount-label">{{ __('app.field.expected') }}</div>
                     <div class="field-amount">{{ $expectedTotal->format() }}</div>
                 </div>
-                <div class="col-4">
+                <div>
                     <div class="field-amount-label">{{ __('app.field.collected') }}</div>
                     <div class="field-amount text-success">{{ $collectedTotal->format() }}</div>
                 </div>
-                <div class="col-4">
+                <div>
                     <div class="field-amount-label">{{ __('app.field.remaining') }}</div>
                     <div class="field-amount text-danger">{{ $remainingTotal->format() }}</div>
                 </div>
             </div>
-            <div class="d-flex justify-content-between border-top mt-3 pt-2">
-                <span class="field-amount-label align-self-center">{{ __('app.cash.in_hand') }}</span>
-                <span class="field-amount">{{ $cashInHand->format() }}</span>
+            <div class="field-stats field-stats-2 border-top mt-3 pt-3">
+                <div>
+                    <div class="field-amount-label">{{ __('app.cash.in_hand') }}</div>
+                    <div class="field-amount">{{ $cashInHand->format() }}</div>
+                </div>
+                <div class="d-flex align-items-center gap-2 text-body-secondary">
+                    <i class="bi bi-calendar-check fs-3 text-primary" aria-hidden="true"></i>
+                    <span>{{ __('app.field.open_today', ['count' => \App\Support\Numerals::localize((string) $openToday)]) }}</span>
+                </div>
             </div>
             @if ($schedules->isNotEmpty())
-                <div class="border-top mt-2 pt-2 fw-semibold text-center">{{ $dayLine }}</div>
+                <div class="border-top mt-3 pt-2 small text-body-secondary text-center">{{ $dayLine }}</div>
             @endif
         </div>
     </div>
@@ -50,8 +55,9 @@
     @endif
 
     @if ($unpaidClients->isNotEmpty() || $paidClients->isNotEmpty())
-        <div class="mb-3">
+        <div class="field-search mb-3">
             <label for="party-search" class="visually-hidden">{{ __('app.field.search') }}</label>
+            <i class="bi bi-search" aria-hidden="true"></i>
             <input type="search" id="party-search" class="form-control form-control-lg js-party-search" autocomplete="off"
                    placeholder="{{ __('app.field.search') }}">
         </div>

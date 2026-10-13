@@ -1,6 +1,8 @@
-/* Field officer overrides loaded after Bootstrap. Mobile-first, one-hand use. */
+/* Field officer overrides. Mobile-first, one-hand use.
+   Vite may link Bootstrap's CSS chunk AFTER this file: a rule that overrides a Bootstrap class needs extra specificity (.card.x, .btn.x). */
 
-:root {
+/* html:root outranks Bootstrap's :root, whichever order Vite emits the CSS in. */
+html:root {
     --bs-body-font-family: "Source Sans 3", "Noto Sans Bengali", system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
@@ -36,8 +38,167 @@
 
 /* Client photo placeholder on the day list, same size as the photo. */
 .field-avatar {
-    width: 56px;
-    height: 56px;
+    width: 64px;
+    height: 64px;
+}
+
+/* Header: sticky so logout and brand stay in reach; logout is a square icon button. */
+.field-header {
+    position: sticky;
+    top: 0;
+    z-index: 1020;
+}
+
+.btn.field-icon-btn {
+    width: 48px;
+    padding: 0;
+    font-size: 1.35rem;
+}
+
+.field-title {
+    font-size: 1.75rem;
+    font-weight: 800;
+}
+
+/* Cards: soft rounded panels on the tinted page background. */
+.card.field-card {
+    border-radius: 1rem;
+    border-color: var(--bs-border-color-translucent);
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+}
+
+/* Every other client card gets a light tint so neighbouring clients are easy to tell apart. */
+.card.field-card-band {
+    background-color: color-mix(in srgb, var(--bs-primary) 7%, var(--bs-body-bg));
+    border-color: color-mix(in srgb, var(--bs-primary) 18%, var(--bs-body-bg));
+}
+
+/* Back button on inner pages: big and obvious. */
+.btn.field-back {
+    font-size: 1.15rem;
+}
+
+/* Member name on collect pages opens the account summary (native <details>). */
+.field-member > summary {
+    list-style: none;
+    cursor: pointer;
+}
+
+.field-member > summary::-webkit-details-marker {
+    display: none;
+}
+
+.field-member-chevron {
+    display: inline-block;
+    transition: transform 0.15s;
+}
+
+.field-member[open] .field-member-chevron {
+    transform: rotate(180deg);
+}
+
+/* Day summary: figures split by thin dividers. */
+.field-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+}
+
+.field-stats.field-stats-2 {
+    grid-template-columns: 1fr 1fr;
+}
+
+.field-stats > * {
+    min-width: 0;
+    padding: 0 0.5rem;
+}
+
+.field-stats > * + * {
+    border-left: 1px solid var(--bs-border-color);
+}
+
+.field-stats > :first-child {
+    padding-left: 0;
+}
+
+/* Search box with the magnifier inside. */
+.field-search {
+    position: relative;
+}
+
+.field-search .bi-search {
+    position: absolute;
+    top: 50%;
+    left: 1rem;
+    transform: translateY(-50%);
+    font-size: 1.2rem;
+    color: var(--bs-secondary-color);
+    pointer-events: none;
+}
+
+.field-search .form-control {
+    padding-left: 2.75rem;
+    border-radius: 0.75rem;
+}
+
+/* One account inside a client card. */
+.field-account {
+    padding: 0.75rem;
+    border: 1px solid var(--bs-border-color-translucent);
+    border-radius: 0.75rem;
+    background: var(--bs-body-bg);
+}
+
+.field-due-row {
+    display: grid;
+    grid-template-columns: 3.5rem minmax(0, 1fr) auto;
+    gap: 0.75rem;
+    align-items: center;
+}
+
+/* Type column: icon over the label, narrow so the amount gets the room. */
+.field-type {
+    text-align: center;
+    line-height: 1.2;
+}
+
+.field-type .bi {
+    font-size: 1.6rem;
+}
+
+/* Very long amounts may wrap rather than run under the button. */
+.field-due-row .field-amount {
+    font-size: 1.5rem;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+.field-due-row .btn {
+    white-space: nowrap;
+    font-size: 1.1rem;
+    padding-inline: 0.9rem;
+}
+
+@media (max-width: 380px) {
+    .field-due-row {
+        gap: 0.5rem;
+    }
+
+    .field-due-row .field-amount {
+        font-size: 1.25rem;
+    }
+
+    .field-due-row .btn {
+        padding-inline: 0.6rem;
+    }
+}
+
+.btn.field-collect-all {
+    margin-top: 0.5rem;
+    border-radius: 0.75rem;
+}
+
+.field-min-0 {
+    min-width: 0;
 }
 
 /* Lets a long client name truncate next to the photo. */

@@ -13,7 +13,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png">
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
-    <title>@hasSection('title')@yield('title') | @endif{{ config('app.name') }}</title>
+    <title>@hasSection('title')@yield('title') | @endif{{ __('app.field.app_name') }}</title>
     @php($pinLock = request()->is('field', 'field/*'))
     @php($pinFresh = $pinLock && auth()->check() && ! View::hasSection('hide_logout') && session()->pull('field_pin_fresh_login', false))
     @if ($pinLock)
@@ -27,15 +27,14 @@
 <body class="bg-body-tertiary" @if (! Vite::isRunningHot() && $swVersion = Vite::manifestHash()) data-sw="/field-sw.js?v={{ $swVersion }}" @endif
     @auth @sectionMissing('hide_logout') data-user-id="{{ auth()->id() }}" @endif @endauth
     @if ($pinLock) @auth @sectionMissing('hide_logout') data-pin-user="{{ auth()->id() }}" data-pin-name="{{ auth()->user()->name }}" @if ($pinFresh) data-pin-fresh-login @endif @endif @endauth @endif>
-    <header class="navbar bg-body border-bottom px-3 d-print-none">
-        <span class="navbar-brand mb-0 h1 d-flex align-items-center gap-2"><img src="/icons/logo-mark.png" width="32" height="32" alt="">{{ config('app.name') }}</span>
+    <header class="navbar bg-body border-bottom px-3 d-print-none field-header">
+        <span class="navbar-brand mb-0 h1 d-flex align-items-center gap-2 fw-bold"><img src="/icons/logo-mark.png" width="40" height="40" alt="">{{ __('app.field.app_name') }}</span>
         @sectionMissing('hide_logout')
             {{-- .js-logout: field.js clears the offline list before signing out. --}}
             <form method="POST" action="{{ route('logout') }}" class="js-logout">
                 @csrf
-                <button type="submit" class="btn btn-outline-secondary btn-lg">
+                <button type="submit" class="btn btn-light border btn-lg field-icon-btn" aria-label="{{ __('app.logout') }}" title="{{ __('app.logout') }}">
                     <i class="bi bi-box-arrow-right" aria-hidden="true"></i>
-                    {{ __('app.logout') }}
                 </button>
             </form>
         @endif

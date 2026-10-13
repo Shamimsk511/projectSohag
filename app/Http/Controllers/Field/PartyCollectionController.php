@@ -9,8 +9,10 @@ use App\Models\CollectionSchedule;
 use App\Models\Party;
 use App\Services\CollectionSyncService;
 use App\Services\LedgerService;
+use App\Services\ReportService;
 use App\Support\Money;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -24,7 +26,7 @@ class PartyCollectionController extends Controller
 {
     public function __construct(private readonly LedgerService $ledger) {}
 
-    public function create(Party $party): View
+    public function create(Party $party, ReportService $reports): View
     {
         Gate::authorize('collect', $party);
 
@@ -37,8 +39,12 @@ class PartyCollectionController extends Controller
             ->get();
         $collected = $this->ledger->collectedForSchedules($rows->modelKeys());
 
+        $accounts = $party->accounts()->active()->orderBy('id')->get();
+
         return view('field.collections.party', [
             'party' => $party,
+            'accounts' => $accounts,
+            'progress' => $reports->memberAccounts($accounts, Carbon::parse(today(config('app.display_timezone'))->toDateString())),
             'rows' => $rows->map(function (CollectionSchedule $schedule) use ($collected): array {
                 $remaining = $schedule->expected_amount->minus($collected[$schedule->id]);
 
